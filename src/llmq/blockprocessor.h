@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Dash Core developers
+// Copyright (c) 2018-2023 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,8 +9,8 @@
 
 #include <chain.h>
 #include <consensus/params.h>
+#include <net_types.h>
 #include <primitives/block.h>
-#include <protocol.h>
 #include <saltedhasher.h>
 #include <sync.h>
 
@@ -26,6 +26,7 @@ class CDataStream;
 class CDeterministicMNManager;
 class CEvoDB;
 class CNode;
+class PeerManager;
 
 extern RecursiveMutex cs_main;
 
@@ -41,6 +42,7 @@ private:
     CChainState& m_chainstate;
     CDeterministicMNManager& m_dmnman;
     CEvoDB& m_evoDb;
+    const std::unique_ptr<PeerManager>& m_peerman;
 
     mutable Mutex minableCommitmentsCs;
     std::map<std::pair<Consensus::LLMQType, uint256>, uint256> minableCommitmentsByQuorum GUARDED_BY(minableCommitmentsCs);
@@ -49,15 +51,15 @@ private:
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, bool, StaticSaltedHasher>> mapHasMinedCommitmentCache GUARDED_BY(minableCommitmentsCs);
 
 public:
-    explicit CQuorumBlockProcessor(CChainState& chainstate, CDeterministicMNManager& dmnman, CEvoDB& evoDb);
+    explicit CQuorumBlockProcessor(CChainState& chainstate, CDeterministicMNManager& dmnman, CEvoDB& evoDb,
+                                   const std::unique_ptr<PeerManager>& peerman);
 
-    MessageProcessingResult ProcessMessage(const CNode& peer, std::string_view msg_type, CDataStream& vRecv);
+    PeerMsgRet ProcessMessage(const CNode& peer, std::string_view msg_type, CDataStream& vRecv);
 
     bool ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state, bool fJustCheck, bool fBLSChecks) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     bool UndoBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    //! it returns hash of commitment if it should be relay, otherwise nullopt
-    std::optional<CInv> AddMineableCommitment(const CFinalCommitment& fqc);
+    void AddMineableCommitment(const CFinalCommitment& fqc);
     bool HasMineableCommitment(const uint256& hash) const;
     bool GetMineableCommitmentByHash(const uint256& commitmentHash, CFinalCommitment& ret) const;
     std::optional<std::vector<CFinalCommitment>> GetMineableCommitments(const Consensus::LLMQParams& llmqParams, int nHeight) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);

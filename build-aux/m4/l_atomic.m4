@@ -4,10 +4,8 @@ dnl permitted in any medium without royalty provided the copyright notice
 dnl and this notice are preserved. This file is offered as-is, without any
 dnl warranty.
 
-# Clang, when building for 32-bit,
-# and linking against libstdc++, requires linking with
-# -latomic if using the C++ atomic library.
-# Can be tested with: clang++ test.cpp -m32
+# Some versions of gcc/libstdc++ require linking with -latomic if
+# using the C++ atomic library.
 #
 # Sourced from http://bugs.debian.org/797228
 
@@ -20,12 +18,10 @@ m4_define([_CHECK_ATOMIC_testbody], [[
 
   int main() {
     std::atomic<bool> lock{true};
-    lock.exchange(false);
+    std::atomic_exchange(&lock, false);
 
     std::atomic<std::chrono::seconds> t{0s};
     t.store(2s);
-    auto t1 = t.load();
-    t.compare_exchange_strong(t1, 3s);
 
     std::atomic<int64_t> a{};
 
@@ -38,8 +34,6 @@ m4_define([_CHECK_ATOMIC_testbody], [[
 AC_DEFUN([CHECK_ATOMIC], [
 
   AC_LANG_PUSH(C++)
-  TEMP_CXXFLAGS="$CXXFLAGS"
-  CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"
 
   AC_MSG_CHECKING([whether std::atomic can be used without link library])
 
@@ -57,6 +51,5 @@ AC_DEFUN([CHECK_ATOMIC], [
         ])
     ])
 
-  CXXFLAGS="$TEMP_CXXFLAGS"
   AC_LANG_POP
 ])

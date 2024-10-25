@@ -315,7 +315,8 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_inputReqests, !cs_nonLocked, !cs_pendingRetry);
     void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_inputReqests, !cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
-    static void AskNodesForLockedTx(const uint256& txid, const CConnman& connman, PeerManager& peerman, bool is_masternode);
+    static void AskNodesForLockedTx(const uint256& txid, const CConnman& connman, const PeerManager& peerman,
+                                    bool is_masternode);
     void ProcessPendingRetryLockTxs()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating, !cs_inputReqests, !cs_nonLocked, !cs_pendingRetry);
 
@@ -330,7 +331,7 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     CInstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
 
-    [[nodiscard]] MessageProcessingResult HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
+    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_creating, !cs_inputReqests, !cs_pendingLocks);
 
     PeerMsgRet ProcessMessage(const CNode& pfrom, std::string_view msg_type, CDataStream& vRecv);

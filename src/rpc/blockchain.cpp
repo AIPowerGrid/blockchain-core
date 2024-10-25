@@ -39,9 +39,7 @@
 #include <sync.h>
 #include <txmempool.h>
 #include <undo.h>
-#include <util/check.h>
 #include <util/strencodings.h>
-#include <util/string.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -99,8 +97,7 @@ static int ComputeNextBlockAndDepth(const CBlockIndex* tip, const CBlockIndex* b
     return blockindex == tip ? 1 : -1;
 }
 
-static const CBlockIndex* ParseHashOrHeight(const UniValue& param, ChainstateManager& chainman)
-{
+CBlockIndex* ParseHashOrHeight(const UniValue& param, ChainstateManager& chainman) {
     LOCK(::cs_main);
     CChain& active_chain = chainman.ActiveChain();
 
@@ -117,7 +114,7 @@ static const CBlockIndex* ParseHashOrHeight(const UniValue& param, ChainstateMan
         return active_chain[height];
     } else {
         const uint256 hash{ParseHashV(param, "hash_or_height")};
-        const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
+        CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
 
         if (!pindex) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
@@ -159,7 +156,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     return result;
 }
 
-UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, llmq::CChainLocksHandler& clhandler, llmq::CInstantSendManager& isman, bool txDetails)
+UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, llmq::CChainLocksHandler& clhandler, llmq::CInstantSendManager& isman, bool txDetails)
 {
     UniValue result = blockheaderToJSON(tip, blockindex, clhandler, isman);
 
@@ -167,7 +164,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
     UniValue txs(UniValue::VARR);
     if (txDetails) {
         CBlockUndo blockUndo;
-        const bool have_undo{WITH_LOCK(::cs_main, return !blockman.IsBlockPruned(blockindex) && UndoReadFromDisk(blockUndo, blockindex))};
+        const bool have_undo = !IsBlockPruned(blockindex) && UndoReadFromDisk(blockUndo, blockindex);
         for (size_t i = 0; i < block.vtx.size(); ++i) {
             const CTransactionRef& tx = block.vtx.at(i);
             // coinbase transaction (i == 0) doesn't have undo data
@@ -291,7 +288,7 @@ static RPCHelpMan waitfornewblock()
         "\nWaits for a specific new block and returns useful info about it.\n"
         "\nReturns the current block on timeout or exit.\n",
         {
-            {"timeout", RPCArg::Type::NUM, RPCArg::Default{0}, "Time in milliseconds to wait for a response. 0 indicates no timeout."},
+            {"timeout", RPCArg::Type::NUM, /* default */ "0", "Time in milliseconds to wait for a response. 0 indicates no timeout."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -334,7 +331,7 @@ static RPCHelpMan waitforblock()
         "\nReturns the current block on timeout or exit.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Block hash to wait for."},
-            {"timeout", RPCArg::Type::NUM, RPCArg::Default{0}, "Time in milliseconds to wait for a response. 0 indicates no timeout."},
+            {"timeout", RPCArg::Type::NUM, /* default */ "0", "Time in milliseconds to wait for a response. 0 indicates no timeout."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -381,7 +378,7 @@ static RPCHelpMan waitforblockheight()
         "\nReturns the current block on timeout or exit.\n",
         {
             {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Block height to wait for."},
-            {"timeout", RPCArg::Type::NUM, RPCArg::Default{0}, "Time in milliseconds to wait for a response. 0 indicates no timeout."},
+            {"timeout", RPCArg::Type::NUM, /* default */ "0", "Time in milliseconds to wait for a response. 0 indicates no timeout."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -460,16 +457,16 @@ static RPCHelpMan getdifficulty()
 
 static std::vector<RPCResult> MempoolEntryDescription() { return {
     RPCResult{RPCResult::Type::NUM, "vsize", "virtual transaction size. This can be different from actual serialized size for high-sigop transactions."},
-    RPCResult{RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)"},
-    RPCResult{RPCResult::Type::STR_AMOUNT, "modifiedfee", /*optional=*/true, "transaction fee with fee deltas used for mining priority (DEPRECATED)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "fee", "transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "modifiedfee", "transaction fee with fee deltas used for mining priority (DEPRECATED)"},
     RPCResult{RPCResult::Type::NUM_TIME, "time", "local time transaction entered pool in " + UNIX_EPOCH_TIME},
     RPCResult{RPCResult::Type::NUM, "height", "block height when transaction entered pool"},
     RPCResult{RPCResult::Type::NUM, "descendantcount", "number of in-mempool descendant transactions (including this one)"},
     RPCResult{RPCResult::Type::NUM, "descendantsize", "size of in-mempool descendants (including this one)"},
-    RPCResult{RPCResult::Type::STR_AMOUNT, "descendantfees",  /*optional=*/true, "modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "descendantfees", "modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)"},
     RPCResult{RPCResult::Type::NUM, "ancestorcount", "number of in-mempool ancestor transactions (including this one)"},
     RPCResult{RPCResult::Type::NUM, "ancestorsize", "size of in-mempool ancestors (including this one)"},
-    RPCResult{RPCResult::Type::STR_AMOUNT, "ancestorfees", /*optional=*/true, "modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "ancestorfees", "modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)"},
     RPCResult{RPCResult::Type::OBJ, "fees", "",
     {
         RPCResult{RPCResult::Type::STR_AMOUNT, "base", "transaction fee in " + CURRENCY_UNIT},
@@ -535,12 +532,9 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     info.pushKV("unbroadcast", pool.IsUnbroadcastTx(tx.GetHash()));
 }
 
-UniValue MempoolToJSON(const CTxMemPool& pool, llmq::CInstantSendManager* isman, bool verbose, bool include_mempool_sequence)
+UniValue MempoolToJSON(const CTxMemPool& pool, llmq::CInstantSendManager* isman, bool verbose)
 {
     if (verbose) {
-        if (include_mempool_sequence) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Verbose results cannot contain mempool sequence values.");
-        }
         LOCK(pool.cs);
         UniValue o(UniValue::VOBJ);
         for (const CTxMemPoolEntry& e : pool.mapTx) {
@@ -554,25 +548,14 @@ UniValue MempoolToJSON(const CTxMemPool& pool, llmq::CInstantSendManager* isman,
         }
         return o;
     } else {
-        uint64_t mempool_sequence;
         std::vector<uint256> vtxid;
-        {
-            LOCK(pool.cs);
-            pool.queryHashes(vtxid);
-            mempool_sequence = pool.GetSequence();
-        }
+        pool.queryHashes(vtxid);
+
         UniValue a(UniValue::VARR);
         for (const uint256& hash : vtxid)
             a.push_back(hash.ToString());
 
-        if (!include_mempool_sequence) {
-            return a;
-        } else {
-            UniValue o(UniValue::VOBJ);
-            o.pushKV("txids", a);
-            o.pushKV("mempool_sequence", mempool_sequence);
-            return o;
-        }
+        return a;
     }
 }
 
@@ -582,8 +565,7 @@ static RPCHelpMan getrawmempool()
         "\nReturns all transaction ids in memory pool as a json array of string transaction ids.\n"
         "\nHint: use getmempoolentry to fetch a specific transaction from the mempool.\n",
         {
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "True for a json object, false for array of transaction ids"},
-            {"mempool_sequence", RPCArg::Type::BOOL, RPCArg::Default{false}, "If verbose=false, returns a json object with transaction list and mempool sequence number attached."},
+            {"verbose", RPCArg::Type::BOOL, /* default */ "false", "True for a json object, false for array of transaction ids"},
         },
         {
             RPCResult{"for verbose = false",
@@ -596,15 +578,6 @@ static RPCHelpMan getrawmempool()
                 {
                     {RPCResult::Type::OBJ, "transactionid", "", MempoolEntryDescription()},
                 }},
-            RPCResult{"for verbose = false and mempool_sequence = true",
-                RPCResult::Type::OBJ, "", "",
-                {
-                    {RPCResult::Type::ARR, "txids", "",
-                    {
-                        {RPCResult::Type::STR_HEX, "", "The transaction id"},
-                    }},
-                    {RPCResult::Type::NUM, "mempool_sequence", "The mempool sequence value."},
-                }},
         },
         RPCExamples{
             HelpExampleCli("getrawmempool", "true")
@@ -616,15 +589,10 @@ static RPCHelpMan getrawmempool()
     if (!request.params[0].isNull())
         fVerbose = request.params[0].get_bool();
 
-    bool include_mempool_sequence = false;
-    if (!request.params[1].isNull()) {
-        include_mempool_sequence = request.params[1].get_bool();
-    }
-
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const CTxMemPool& mempool = EnsureMemPool(node);
     LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    return MempoolToJSON(mempool, llmq_ctx.isman, fVerbose, include_mempool_sequence);
+    return MempoolToJSON(mempool, llmq_ctx.isman, fVerbose);
 },
     };
 }
@@ -635,7 +603,7 @@ static RPCHelpMan getmempoolancestors()
         "\nIf txid is in the mempool, returns all in-mempool ancestors.\n",
         {
             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id (must be in mempool)"},
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "True for a json object, false for array of transaction ids"},
+            {"verbose", RPCArg::Type::BOOL, /* default */ "false", "True for a json object, false for array of transaction ids"},
         },
         {
             RPCResult{"for verbose = false",
@@ -702,7 +670,7 @@ static RPCHelpMan getmempooldescendants()
         "\nIf txid is in the mempool, returns all in-mempool descendants.\n",
         {
             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id (must be in mempool)"},
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "True for a json object, false for array of transaction ids"},
+            {"verbose", RPCArg::Type::BOOL, /* default */ "false", "True for a json object, false for array of transaction ids"},
         },
         {
             RPCResult{"for verbose = false",
@@ -809,7 +777,7 @@ static RPCHelpMan getblockfrompeer()
         "\nWe must have the header for this block, e.g. using submitheader.\n"
         "\nReturns {} if a block-request was successfully scheduled\n",
         {
-            {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash to try to fetch"},
+            {"block_hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash to try to fetch"},
             {"peer_id", RPCArg::Type::NUM, RPCArg::Optional::NO, "The peer to fetch it from (see getpeerinfo for peer IDs)"},
         },
         RPCResult{RPCResult::Type::OBJ, "", "",
@@ -822,16 +790,11 @@ static RPCHelpMan getblockfrompeer()
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    RPCTypeCheck(request.params, {
-        UniValue::VSTR, // blockhash
-        UniValue::VNUM, // peer_id
-    });
-
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     PeerManager& peerman = EnsurePeerman(node);
 
-    const uint256& block_hash{ParseHashV(request.params[0], "blockhash")};
+    const uint256& block_hash{ParseHashV(request.params[0], "block_hash")};
     const NodeId peer_id{request.params[1].get_int64()};
 
     const CBlockIndex* const index = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(block_hash););
@@ -842,8 +805,7 @@ static RPCHelpMan getblockfrompeer()
 
     UniValue result = UniValue::VOBJ;
 
-    const bool block_has_data = WITH_LOCK(::cs_main, return index->nStatus & BLOCK_HAVE_DATA);
-    if (block_has_data) {
+    if (index->nStatus & BLOCK_HAVE_DATA) {
         result.pushKV("warnings", "Block already downloaded");
     } else if (const auto err{peerman.FetchBlock(peer_id, *index)}) {
         throw JSONRPCError(RPC_MISC_ERROR, err.value());
@@ -874,8 +836,7 @@ static RPCHelpMan getblockhashes()
     unsigned int low = request.params[1].get_int();
     std::vector<uint256> blockHashes;
 
-    ChainstateManager& chainman = EnsureAnyChainman(request.context);
-    if (LOCK(::cs_main); !GetTimestampIndex(*chainman.m_blockman.m_block_tree_db, high, low, blockHashes)) {
+    if (LOCK(::cs_main); !GetTimestampIndex(*pblocktree, high, low, blockHashes)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
     }
 
@@ -912,7 +873,7 @@ static RPCHelpMan getblockhash()
     if (nHeight < 0 || nHeight > active_chain.Height())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
 
-    const CBlockIndex* pblockindex = active_chain[nHeight];
+    CBlockIndex* pblockindex = active_chain[nHeight];
     return pblockindex->GetBlockHash().GetHex();
 },
     };
@@ -925,7 +886,7 @@ static RPCHelpMan getblockheader()
         "If verbose is true, returns an Object with information about blockheader <hash>.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{true}, "true for a json object, false for the hex-encoded data"},
+            {"verbose", RPCArg::Type::BOOL, /* default */ "true", "true for a json object, false for the hex-encoded data"},
         },
         {
             RPCResult{"for verbose = true",
@@ -999,8 +960,8 @@ static RPCHelpMan getblockheaders()
         "If verbose is true, each item is an Object with information about a single blockheader.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
-            {"count", RPCArg::Type::NUM, RPCArg::Default{int{MAX_HEADERS_UNCOMPRESSED_RESULT}}, ""},
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{true}, "true for a json object, false for the hex-encoded data"},
+            {"count", RPCArg::Type::NUM, /* default */ strprintf("%s", MAX_HEADERS_RESULTS), ""},
+            {"verbose", RPCArg::Type::BOOL, /* default */ "true", "true for a json object, false for the hex-encoded data"},
         },
         {
             RPCResult{"for verbose = true",
@@ -1057,11 +1018,11 @@ static RPCHelpMan getblockheaders()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     }
 
-    int nCount = MAX_HEADERS_UNCOMPRESSED_RESULT;
+    int nCount = MAX_HEADERS_RESULTS;
     if (!request.params[1].isNull())
         nCount = request.params[1].get_int();
 
-    if (nCount <= 0 || nCount > (int)MAX_HEADERS_UNCOMPRESSED_RESULT)
+    if (nCount <= 0 || nCount > (int)MAX_HEADERS_RESULTS)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Count is out of range");
 
     bool fVerbose = true;
@@ -1097,11 +1058,10 @@ static RPCHelpMan getblockheaders()
     };
 }
 
-static CBlock GetBlockChecked(BlockManager& blockman, const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+static CBlock GetBlockChecked(const CBlockIndex* pblockindex)
 {
-    AssertLockHeld(::cs_main);
     CBlock block;
-    if (blockman.IsBlockPruned(pblockindex)) {
+    if (IsBlockPruned(pblockindex)) {
         throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
     }
 
@@ -1115,11 +1075,10 @@ static CBlock GetBlockChecked(BlockManager& blockman, const CBlockIndex* pblocki
     return block;
 }
 
-static CBlockUndo GetUndoChecked(BlockManager& blockman, const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+static CBlockUndo GetUndoChecked(const CBlockIndex* pblockindex)
 {
-    AssertLockHeld(::cs_main);
     CBlockUndo blockUndo;
-    if (blockman.IsBlockPruned(pblockindex)) {
+    if (IsBlockPruned(pblockindex)) {
         throw JSONRPCError(RPC_MISC_ERROR, "Undo data not available (pruned data)");
     }
 
@@ -1137,7 +1096,7 @@ static RPCHelpMan getmerkleblocks()
         {
             {"filter", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hex-encoded bloom filter"},
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
-            {"count", RPCArg::Type::NUM, RPCArg::Default{int{MAX_HEADERS_UNCOMPRESSED_RESULT}}, ""},
+            {"count", RPCArg::Type::NUM, /* default */ strprintf("%s", MAX_HEADERS_RESULTS), ""},
         },
         RPCResult{
                 RPCResult::Type::ARR, "", "",
@@ -1166,15 +1125,15 @@ static RPCHelpMan getmerkleblocks()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     }
 
-    int nCount = MAX_HEADERS_UNCOMPRESSED_RESULT;
+    int nCount = MAX_HEADERS_RESULTS;
     if (!request.params[2].isNull())
         nCount = request.params[2].get_int();
 
-    if (nCount <= 0 || nCount > (int)MAX_HEADERS_UNCOMPRESSED_RESULT) {
+    if (nCount <= 0 || nCount > (int)MAX_HEADERS_RESULTS) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Count is out of range");
     }
 
-    CBlock block = GetBlockChecked(chainman.m_blockman, pblockindex);
+    CBlock block = GetBlockChecked(pblockindex);
 
     UniValue arrMerkleBlocks(UniValue::VARR);
 
@@ -1213,7 +1172,7 @@ static RPCHelpMan getblock()
                 "If verbosity is 2, returns an Object with information about block <hash> and information about each transaction. \n",
                 {
                     {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
-                    {"verbosity|verbose", RPCArg::Type::NUM, RPCArg::Default{1}, "0 for hex-encoded data, 1 for a json object, and 2 for json object with transaction data"},
+                    {"verbosity|verbose", RPCArg::Type::NUM, /* default */ "1", "0 for hex-encoded data, 1 for a json object, and 2 for json object with transaction data"},
                 },
                 {
                     RPCResult{"for verbosity = 0",
@@ -1284,8 +1243,8 @@ static RPCHelpMan getblock()
     CBlock block;
     const CBlockIndex* pblockindex;
     const CBlockIndex* tip;
-    ChainstateManager& chainman = EnsureChainman(node);
     {
+        ChainstateManager& chainman = EnsureChainman(node);
         LOCK(cs_main);
         pblockindex = chainman.m_blockman.LookupBlockIndex(hash);
         tip = chainman.ActiveChain().Tip();
@@ -1294,7 +1253,7 @@ static RPCHelpMan getblock()
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
 
-        block = GetBlockChecked(chainman.m_blockman, pblockindex);
+        block = GetBlockChecked(pblockindex);
     }
 
     if (verbosity <= 0)
@@ -1306,7 +1265,7 @@ static RPCHelpMan getblock()
     }
 
     LLMQContext& llmq_ctx = EnsureLLMQContext(node);
-    return blockToJSON(chainman.m_blockman, block, tip, pblockindex, *llmq_ctx.clhandler, *llmq_ctx.isman, verbosity >= 2);
+    return blockToJSON(block, tip, pblockindex, *llmq_ctx.clhandler, *llmq_ctx.isman, verbosity >= 2);
 },
     };
 }
@@ -1342,7 +1301,7 @@ static RPCHelpMan pruneblockchain()
     // too low to be a block time (corresponds to timestamp from Sep 2001).
     if (heightParam > 1000000000) {
         // Add a 2 hour buffer to include blocks which might have had old timestamps
-        const CBlockIndex* pindex = active_chain.FindEarliestAtLeast(heightParam - TIMESTAMP_WINDOW, 0);
+        CBlockIndex* pindex = active_chain.FindEarliestAtLeast(heightParam - TIMESTAMP_WINDOW, 0);
         if (!pindex) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Could not find block with at least the specified timestamp.");
         }
@@ -1361,10 +1320,12 @@ static RPCHelpMan pruneblockchain()
     }
 
     PruneBlockFilesManual(active_chainstate, height);
-    const CBlockIndex* block = CHECK_NONFATAL(active_chain.Tip());
-    const CBlockIndex* last_block = GetFirstStoredBlock(block);
-
-    return static_cast<uint64_t>(last_block->nHeight);
+    const CBlockIndex* block = active_chain.Tip();
+    CHECK_NONFATAL(block);
+    while (block->pprev && (block->pprev->nStatus & BLOCK_HAVE_DATA)) {
+        block = block->pprev;
+    }
+    return uint64_t(block->nHeight);
 },
     };
 }
@@ -1378,7 +1339,7 @@ CoinStatsHashType ParseHashType(const std::string& hash_type_input)
     } else if (hash_type_input == "none") {
         return CoinStatsHashType::NONE;
     } else {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("'%s' is not a valid hash_type", hash_type_input));
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s is not a valid hash_type", hash_type_input));
     }
 }
 
@@ -1388,9 +1349,9 @@ static RPCHelpMan gettxoutsetinfo()
         "\nReturns statistics about the unspent transaction output set.\n"
         "Note this call may take some time if you are not using coinstatsindex.\n",
         {
-            {"hash_type", RPCArg::Type::STR, RPCArg::Default{"hash_serialized_2"}, "Which UTXO set hash should be calculated. Options: 'hash_serialized_2' (the legacy algorithm), 'muhash', 'none'."},
-            {"hash_or_height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED_NAMED_ARG, "The block hash or height of the target height (only available with coinstatsindex).", "", {"", "string or numeric"}},
-            {"use_index", RPCArg::Type::BOOL, RPCArg::Default{true}, "Use coinstatsindex, if available."},
+            {"hash_type", RPCArg::Type::STR, /* default */ "hash_serialized_2", "Which UTXO set hash should be calculated. Options: 'hash_serialized_2' (the legacy algorithm), 'muhash', 'none'."},
+            {"hash_or_height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The block hash or height of the target height (only available with coinstatsindex).", "", {"", "string or numeric"}},
+            {"use_index", RPCArg::Type::BOOL, /* default */ "true", "Use coinstatsindex, if available."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -1434,7 +1395,7 @@ static RPCHelpMan gettxoutsetinfo()
 {
     UniValue ret(UniValue::VOBJ);
 
-    const CBlockIndex* pindex{nullptr};
+    CBlockIndex* pindex{nullptr};
     const CoinStatsHashType hash_type{request.params[0].isNull() ? CoinStatsHashType::HASH_SERIALIZED : ParseHashType(request.params[0].get_str())};
     CCoinsStats stats{hash_type};
     stats.index_requested = request.params[2].isNull() || request.params[2].get_bool();
@@ -1532,11 +1493,11 @@ static RPCHelpMan gettxout()
         {
             {"txid", RPCArg::Type::STR, RPCArg::Optional::NO, "The transaction id"},
             {"n", RPCArg::Type::NUM, RPCArg::Optional::NO, "vout number"},
-            {"include_mempool", RPCArg::Type::BOOL, RPCArg::Default{true}, "Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear."},
+            {"include_mempool", RPCArg::Type::BOOL, /* default */ "true", "Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear."},
         },
-        {
-            RPCResult{"If the UTXO was not found", RPCResult::Type::NONE, "", ""},
-            RPCResult{"Otherwise", RPCResult::Type::OBJ, "", "", {
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
                 {RPCResult::Type::STR_HEX, "bestblock", "The hash of the block at the tip of the chain"},
                 {RPCResult::Type::NUM, "confirmations", "The number of confirmations"},
                 {RPCResult::Type::STR_AMOUNT, "value", "The transaction value in " + CURRENCY_UNIT},
@@ -1552,7 +1513,6 @@ static RPCHelpMan gettxout()
                     }},
                 {RPCResult::Type::BOOL, "coinbase", "Coinbase or not"},
             }},
-        },
         RPCExamples{
     "\nGet unspent transactions\n"
     + HelpExampleCli("listunspent", "") +
@@ -1619,9 +1579,9 @@ static RPCHelpMan verifychain()
     return RPCHelpMan{"verifychain",
         "\nVerifies blockchain database.\n",
         {
-            {"checklevel", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, range=0-4", DEFAULT_CHECKLEVEL)},
-                        strprintf("How thorough the block verification is:\n - %s", MakeUnorderedList(CHECKLEVEL_DOC))},
-            {"nblocks", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, 0=all", DEFAULT_CHECKBLOCKS)}, "The number of blocks to check."},
+            {"checklevel", RPCArg::Type::NUM, /* default */ strprintf("%d, range=0-4", DEFAULT_CHECKLEVEL),
+                        strprintf("How thorough the block verification is:\n - %s", Join(CHECKLEVEL_DOC, "\n- "))},
+            {"nblocks", RPCArg::Type::NUM, /* default */ strprintf("%d, 0=all", DEFAULT_CHECKBLOCKS), "The number of blocks to check."},
         },
         RPCResult{
             RPCResult::Type::BOOL, "", "Verified or not"},
@@ -1635,13 +1595,14 @@ static RPCHelpMan verifychain()
     const int check_depth{request.params[1].isNull() ? DEFAULT_CHECKBLOCKS : request.params[1].get_int()};
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
+    CHECK_NONFATAL(node.evodb);
 
     ChainstateManager& chainman = EnsureChainman(node);
     LOCK(cs_main);
 
     CChainState& active_chainstate = chainman.ActiveChainstate();
     return CVerifyDB().VerifyDB(
-        active_chainstate, Params(), active_chainstate.CoinsTip(), *CHECK_NONFATAL(node.evodb), check_level, check_depth);
+        active_chainstate, Params(), active_chainstate.CoinsTip(), *node.evodb, check_level, check_depth);
 },
     };
 }
@@ -1649,7 +1610,10 @@ static RPCHelpMan verifychain()
 static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& softforks, const Consensus::Params& params, Consensus::BuriedDeployment dep)
 {
     // For buried deployments.
-
+    // A buried deployment is one where the height of the activation has been hardcoded into
+    // the client implementation long after the consensus change has activated. See BIP 90.
+    // Buried deployments with activation height value of
+    // std::numeric_limits<int>::max() are disabled and thus hidden.
     if (!DeploymentEnabled(params, dep)) return;
 
     UniValue rv(UniValue::VOBJ);
@@ -1664,8 +1628,8 @@ static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& 
 static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, const std::unordered_map<uint8_t, int>& signals, UniValue& softforks, const Consensus::Params& consensusParams, Consensus::DeploymentPos id)
 {
     // For BIP9 deployments.
-
-    if (!DeploymentEnabled(consensusParams, id)) return;
+    // Deployments that are never active are hidden.
+    if (consensusParams.vDeployments[id].nStartTime == Consensus::BIP9Deployment::NEVER_ACTIVE) return;
 
     UniValue bip9(UniValue::VOBJ);
     const ThresholdState thresholdState = g_versionbitscache.State(active_chain_tip, consensusParams, id);
@@ -1775,41 +1739,45 @@ RPCHelpMan getblockchaininfo()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
+    std::string strChainName = gArgs.IsArgSet("-devnet") ? gArgs.GetDevNetName() : Params().NetworkIDString();
+
     const NodeContext& node = EnsureAnyNodeContext(request.context);
-    const ArgsManager& args{EnsureArgsman(node)};
     ChainstateManager& chainman = EnsureChainman(node);
 
     LOCK(cs_main);
     CChainState& active_chainstate = chainman.ActiveChainstate();
+    const CBlockIndex* tip = active_chainstate.m_chain.Tip();
 
-    const CBlockIndex* tip = CHECK_NONFATAL(active_chainstate.m_chain.Tip());
+    CHECK_NONFATAL(tip);
     const int height = tip->nHeight;
 
-    const auto ehfSignals = CHECK_NONFATAL(node.mnhf_manager)->GetSignalsStage(tip);
+    CHECK_NONFATAL(node.mnhf_manager);
+    const auto ehfSignals = node.mnhf_manager->GetSignalsStage(tip);
 
     UniValue obj(UniValue::VOBJ);
-    if (args.IsArgSet("-devnet")) {
-        obj.pushKV("chain", args.GetDevNetName());
-    } else {
-        obj.pushKV("chain", Params().NetworkIDString());
-    }
-    obj.pushKV("blocks", height);
-    obj.pushKV("headers", chainman.m_best_header ? chainman.m_best_header->nHeight : -1);
-    obj.pushKV("bestblockhash", tip->GetBlockHash().GetHex());
-    obj.pushKV("difficulty", (double)GetDifficulty(tip));
-    obj.pushKV("time", (int64_t)tip->nTime);
-    obj.pushKV("mediantime", (int64_t)tip->GetMedianTimePast());
-    obj.pushKV("verificationprogress", GuessVerificationProgress(Params().TxData(), tip));
-    obj.pushKV("initialblockdownload", active_chainstate.IsInitialBlockDownload());
-    obj.pushKV("chainwork", tip->nChainWork.GetHex());
-    obj.pushKV("size_on_disk", chainman.m_blockman.CalculateCurrentUsage());
-    obj.pushKV("pruned", fPruneMode);
+    obj.pushKV("chain",                 strChainName);
+    obj.pushKV("blocks",                height);
+    obj.pushKV("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1);
+    obj.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
+    obj.pushKV("difficulty",            (double)GetDifficulty(tip));
+    obj.pushKV("time",                  (int64_t)tip->nTime);
+    obj.pushKV("mediantime",            (int64_t)tip->GetMedianTimePast());
+    obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));
+    obj.pushKV("initialblockdownload",  active_chainstate.IsInitialBlockDownload());
+    obj.pushKV("chainwork",             tip->nChainWork.GetHex());
+    obj.pushKV("size_on_disk",          CalculateCurrentUsage());
+    obj.pushKV("pruned",                fPruneMode);
     if (fPruneMode) {
-        const CBlockIndex* block = CHECK_NONFATAL(tip);
-        obj.pushKV("pruneheight", GetFirstStoredBlock(block)->nHeight);
+        const CBlockIndex* block = tip;
+        CHECK_NONFATAL(block);
+        while (block->pprev && (block->pprev->nStatus & BLOCK_HAVE_DATA)) {
+            block = block->pprev;
+        }
+
+        obj.pushKV("pruneheight",        block->nHeight);
 
         // if 0, execution bypasses the whole if block.
-        bool automatic_pruning{args.GetArg("-prune", 0) != 1};
+        bool automatic_pruning = (gArgs.GetArg("-prune", 0) != 1);
         obj.pushKV("automatic_pruning",  automatic_pruning);
         if (automatic_pruning) {
             obj.pushKV("prune_target_size",  nPruneTarget);
@@ -1831,9 +1799,8 @@ RPCHelpMan getblockchaininfo()
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_DIP0024);
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_BRR);
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_V19);
-    SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_V20);
-    SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_MN_RR);
-    SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_WITHDRAWALS);
+    SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_V20);
+    SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_MN_RR);
     SoftForkDescPushBack(tip, ehfSignals, softforks, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY);
 
     obj.pushKV("softforks", softforks);
@@ -1865,8 +1832,8 @@ static RPCHelpMan getchaintips()
         "Return information about all known tips in the block tree,"
         " including the main chain as well as orphaned branches.\n",
         {
-            {"count", RPCArg::Type::NUM, RPCArg::Default{INT_MAX}, "only show this much of latest tips"},
-            {"branchlen", RPCArg::Type::NUM, RPCArg::Default{-1}, "only show tips that have equal or greater length of branch"},
+            {"count", RPCArg::Type::NUM, /* default */ "", "only show this much of latest tips"},
+            {"branchlen", RPCArg::Type::NUM, /* default */ "", "only show tips that have equal or greater length of branch"},
         },
         RPCResult{
             RPCResult::Type::ARR, "", "",
@@ -1909,10 +1876,10 @@ static RPCHelpMan getchaintips()
     std::set<const CBlockIndex*> setOrphans;
     std::set<const CBlockIndex*> setPrevs;
 
-    for (const auto& [_, block_index] : chainman.BlockIndex()) {
-        if (!active_chain.Contains(&block_index)) {
-            setOrphans.insert(&block_index);
-            setPrevs.insert(block_index.pprev);
+    for (const std::pair<const uint256, CBlockIndex*>& item : chainman.BlockIndex()) {
+        if (!active_chain.Contains(item.second)) {
+            setOrphans.insert(item.second);
+            setPrevs.insert(item.second->pprev);
         }
     }
 
@@ -1925,8 +1892,14 @@ static RPCHelpMan getchaintips()
     // Always report the currently active tip.
     setTips.insert(active_chain.Tip());
 
-    int nCountMax{request.params[0].isNull() ? INT_MAX : request.params[0].get_int()};
-    const int nBranchMin{request.params[1].isNull() ? -1: request.params[1].get_int()};
+    int nBranchMin = -1;
+    int nCountMax = INT_MAX;
+
+    if(!request.params[0].isNull())
+        nCountMax = request.params[0].get_int();
+
+    if(!request.params[1].isNull())
+        nBranchMin = request.params[1].get_int();
 
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
@@ -2161,8 +2134,8 @@ static RPCHelpMan getchaintxstats()
     return RPCHelpMan{"getchaintxstats",
                 "\nCompute statistics about the total number and rate of transactions in the chain.\n",
                 {
-                    {"nblocks", RPCArg::Type::NUM, RPCArg::DefaultHint{"one month"}, "Size of the window in number of blocks"},
-                    {"blockhash", RPCArg::Type::STR_HEX, RPCArg::DefaultHint{"chain tip"}, "The hash of the block that ends the window."},
+                    {"nblocks", RPCArg::Type::NUM, /* default */ "one month", "Size of the window in number of blocks"},
+                    {"blockhash", RPCArg::Type::STR_HEX, /* default */ "chain tip", "The hash of the block that ends the window."},
                 },
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
@@ -2311,7 +2284,7 @@ static RPCHelpMan getblockstats()
                 "It won't work for some heights with pruning.\n",
                 {
                     {"hash_or_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "The block hash or height of the target block", "", {"", "string or numeric"}},
-                    {"stats", RPCArg::Type::ARR, RPCArg::DefaultHint{"all values"}, "Values to plot (see result below)",
+                    {"stats", RPCArg::Type::ARR, /* default */ "all values", "Values to plot (see result below)",
                         {
                             {"height", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Selected statistic"},
                             {"time", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Selected statistic"},
@@ -2368,7 +2341,7 @@ static RPCHelpMan getblockstats()
 
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
-    const CBlockIndex* pindex{ParseHashOrHeight(request.params[0], chainman)};
+    CBlockIndex* pindex{ParseHashOrHeight(request.params[0], chainman)};
     CHECK_NONFATAL(pindex != nullptr);
 
     std::set<std::string> stats;
@@ -2380,8 +2353,8 @@ static RPCHelpMan getblockstats()
         }
     }
 
-    const CBlock block = GetBlockChecked(chainman.m_blockman, pindex);
-    const CBlockUndo blockUndo = GetUndoChecked(chainman.m_blockman, pindex);
+    const CBlock block = GetBlockChecked(pindex);
+    const CBlockUndo blockUndo = GetUndoChecked(pindex);
 
     const bool do_all = stats.size() == 0; // Calculate everything if nothing selected (default)
     const bool do_mediantxsize = do_all || stats.count("mediantxsize") != 0;
@@ -2518,7 +2491,7 @@ static RPCHelpMan getblockstats()
     for (const std::string& stat : stats) {
         const UniValue& value = ret_all[stat];
         if (value.isNull()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid selected statistic '%s'", stat));
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid selected statistic %s", stat));
         }
         ret.pushKV(stat, value);
     }
@@ -2536,10 +2509,10 @@ static RPCHelpMan getspecialtxes()
         "If verbosity is 2, returns an Object with information for each transaction.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
-            {"type", RPCArg::Type::NUM, RPCArg::Default{-1}, "Filter special txes by type, -1 means all types"},
-            {"count", RPCArg::Type::NUM, RPCArg::Default{10}, "The number of transactions to return"},
-            {"skip", RPCArg::Type::NUM, RPCArg::Default{0}, "The number of transactions to skip"},
-            {"verbosity", RPCArg::Type::NUM, RPCArg::Default{0}, "0 for hashes, 1 for hex-encoded data, and 2 for json object"},
+            {"type", RPCArg::Type::NUM, /* default */ "-1", "Filter special txes by type, -1 means all types"},
+            {"count", RPCArg::Type::NUM, /* default */ "10", "The number of transactions to return"},
+            {"skip", RPCArg::Type::NUM, /* default */ "0", "The number of transactions to skip"},
+            {"verbosity", RPCArg::Type::NUM, /* default */ "0", "0 for hashes, 1 for hex-encoded data, and 2 for json object"},
         },
         {
             RPCResult{"for verbosity = 0",
@@ -2600,7 +2573,7 @@ static RPCHelpMan getspecialtxes()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     }
 
-    const CBlock block = GetBlockChecked(chainman.m_blockman, pblockindex);
+    const CBlock block = GetBlockChecked(pblockindex);
 
     int nTxNum = 0;
     UniValue result(UniValue::VARR);
@@ -2640,18 +2613,13 @@ static RPCHelpMan savemempool()
     return RPCHelpMan{"savemempool",
         "\nDumps the mempool to disk. It will fail until the previous dump is fully loaded.\n",
         {},
-        RPCResult{
-            RPCResult::Type::OBJ, "", "",
-            {
-                {RPCResult::Type::STR, "filename", "the directory and file where the mempool was saved"},
-            }},
+        RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{
             HelpExampleCli("savemempool", "")
     + HelpExampleRpc("savemempool", "")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    const ArgsManager& args{EnsureAnyArgsman(request.context)};
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
 
     if (!mempool.IsLoaded()) {
@@ -2662,10 +2630,7 @@ static RPCHelpMan savemempool()
         throw JSONRPCError(RPC_MISC_ERROR, "Unable to dump mempool to disk");
     }
 
-    UniValue ret(UniValue::VOBJ);
-    ret.pushKV("filename", fs::path((args.GetDataDirNet() / "mempool.dat")).u8string());
-
-    return ret;
+    return NullUniValue;
 },
     };
 }
@@ -2733,9 +2698,6 @@ public:
 
 static RPCHelpMan scantxoutset()
 {
-    // scriptPubKey corresponding to mainnet address XcJSEb79KEeNbwMU7eE27aL5dhDwvjgBuH
-    const std::string EXAMPLE_DESCRIPTOR_RAW = "raw(76a91411b366edfc0a8b66feebae5c2e25a7b6a5d1cf3188ac)#fm24fxxy";
-
     return RPCHelpMan{"scantxoutset",
         "\nScans the unspent transaction output set for entries that match certain output descriptors.\n"
         "Examples of output descriptors are:\n"
@@ -2761,14 +2723,15 @@ static RPCHelpMan scantxoutset()
                     {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "An object with output descriptor and metadata",
                         {
                             {"desc", RPCArg::Type::STR, RPCArg::Optional::NO, "An output descriptor"},
-                            {"range", RPCArg::Type::RANGE, RPCArg::Default{1000}, "The range of HD chain indexes to explore (either end or [begin,end])"},
+                            {"range", RPCArg::Type::RANGE, /* default */ "1000", "The range of HD chain indexes to explore (either end or [begin,end])"},
                         },
                     },
                 },
                 "[scanobjects,...]"},
         },
-        {
-            RPCResult{"when action=='start'; only returns after scan completes", RPCResult::Type::OBJ, "", "", {
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
                 {RPCResult::Type::BOOL, "success", "Whether the scan was completed"},
                 {RPCResult::Type::NUM, "txouts", "The number of unspent transaction outputs scanned"},
                 {RPCResult::Type::NUM, "height", "The current block height (index)"},
@@ -2787,21 +2750,7 @@ static RPCHelpMan scantxoutset()
                     }},
                 {RPCResult::Type::STR_AMOUNT, "total_amount", "The total amount of all found unspent outputs in " + CURRENCY_UNIT},
             }},
-            RPCResult{"when action=='abort'", RPCResult::Type::BOOL, "success", "True if scan will be aborted (not necessarily before this RPC returns), or false if there is no scan to abort"},
-            RPCResult{"when action=='status' and a scan is currently in progress", RPCResult::Type::OBJ, "", "",
-            {
-                {RPCResult::Type::NUM, "progress", "Approximate percent complete"},
-            }},
-            RPCResult{"when action=='status' and no scan is in progress - possibly already completed", RPCResult::Type::NONE, "", ""},
-        },
-        RPCExamples{
-            HelpExampleCli("scantxoutset", "start \'[\"" + EXAMPLE_DESCRIPTOR_RAW + "\"]\'") +
-            HelpExampleCli("scantxoutset", "status") +
-            HelpExampleCli("scantxoutset", "abort") +
-            HelpExampleRpc("scantxoutset", "\"start\", [\"" + EXAMPLE_DESCRIPTOR_RAW + "\"]") +
-            HelpExampleRpc("scantxoutset", "\"status\"") +
-            HelpExampleRpc("scantxoutset", "\"abort\"")
-        },
+        RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR});
@@ -2856,15 +2805,17 @@ static RPCHelpMan scantxoutset()
         g_should_abort_scan = false;
         int64_t count = 0;
         std::unique_ptr<CCoinsViewCursor> pcursor;
-        const CBlockIndex* tip;
+        CBlockIndex* tip;
         NodeContext& node = EnsureAnyNodeContext(request.context);
         {
             ChainstateManager& chainman = EnsureChainman(node);
             LOCK(cs_main);
             CChainState& active_chainstate = chainman.ActiveChainstate();
             active_chainstate.ForceFlushStateToDisk();
-            pcursor = CHECK_NONFATAL(active_chainstate.CoinsDB().Cursor());
-            tip = CHECK_NONFATAL(active_chainstate.m_chain.Tip());
+            pcursor = active_chainstate.CoinsDB().Cursor();
+            CHECK_NONFATAL(pcursor);
+            tip = active_chainstate.m_chain.Tip();
+            CHECK_NONFATAL(tip);
         }
         bool res = FindScriptPubKey(g_scan_progress, g_should_abort_scan, count, pcursor.get(), needles, coins, node.rpc_interruption_point);
         result.pushKV("success", res);
@@ -2905,7 +2856,7 @@ static RPCHelpMan getblockfilter()
         "\nRetrieve a BIP 157 content filter for a particular block.\n",
         {
             {"blockhash", RPCArg::Type::STR, RPCArg::Optional::NO, "The hash of the block"},
-            {"filtertype", RPCArg::Type::STR, RPCArg::Default{"basic"}, "The type name of the filter"},
+            {"filtertype", RPCArg::Type::STR, /* default */ "basic", "The type name of the filter"},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -3005,16 +2956,15 @@ static RPCHelpMan dumptxoutset()
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    const ArgsManager& args{EnsureAnyArgsman(request.context)};
-    const fs::path path = fsbridge::AbsPathJoin(args.GetDataDirNet(), fs::u8path(request.params[0].get_str()));
+    const fs::path path = fsbridge::AbsPathJoin(GetDataDir(), request.params[0].get_str());
     // Write to a temporary path and then move into `path` on completion
     // to avoid confusion due to an interruption.
-    const fs::path temppath = fsbridge::AbsPathJoin(args.GetDataDirNet(), fs::u8path(request.params[0].get_str() + ".incomplete"));
+    const fs::path temppath = fsbridge::AbsPathJoin(GetDataDir(), request.params[0].get_str() + ".incomplete");
 
     if (fs::exists(path)) {
         throw JSONRPCError(
             RPC_INVALID_PARAMETER,
-            path.u8string() + " already exists. If you are sure this is what you want, "
+            path.string() + " already exists. If you are sure this is what you want, "
             "move it out of the way first");
     }
 
@@ -3025,7 +2975,7 @@ static RPCHelpMan dumptxoutset()
     UniValue result = CreateUTXOSnapshot(node, chainman.ActiveChainstate(), afile);
     fs::rename(temppath, path);
 
-    result.pushKV("path", path.u8string());
+    result.pushKV("path", path.string());
     return result;
 },
     };
@@ -3035,7 +2985,7 @@ UniValue CreateUTXOSnapshot(NodeContext& node, CChainState& chainstate, CAutoFil
 {
     std::unique_ptr<CCoinsViewCursor> pcursor;
     CCoinsStats stats{CoinStatsHashType::NONE};
-    const CBlockIndex* tip;
+    CBlockIndex* tip;
 
     {
         // We need to lock cs_main to ensure that the coinsdb isn't written to
@@ -3059,7 +3009,8 @@ UniValue CreateUTXOSnapshot(NodeContext& node, CChainState& chainstate, CAutoFil
         }
 
         pcursor = chainstate.CoinsDB().Cursor();
-        tip = CHECK_NONFATAL(chainstate.m_blockman.LookupBlockIndex(stats.hashBlock));
+        tip = chainstate.m_blockman.LookupBlockIndex(stats.hashBlock);
+        CHECK_NONFATAL(tip);
     }
 
     SnapshotMetadata metadata{tip->GetBlockHash(), stats.coins_count, tip->nChainTx};
@@ -3095,47 +3046,47 @@ void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
 static const CRPCCommand commands[] =
-{ //  category              actor (function)
-  //  --------------------- ------------------------
-    { "blockchain",         &getblockchaininfo,                  },
-    { "blockchain",         &getchaintxstats,                    },
-    { "blockchain",         &getblockstats,                      },
-    { "blockchain",         &getbestblockhash,                   },
-    { "blockchain",         &getbestchainlock,                   },
-    { "blockchain",         &getblockcount,                      },
-    { "blockchain",         &getblock,                           },
-    { "blockchain",         &getblockfrompeer,                   },
-    { "blockchain",         &getblockhashes,                     },
-    { "blockchain",         &getblockhash,                       },
-    { "blockchain",         &getblockheader,                     },
-    { "blockchain",         &getblockheaders,                    },
-    { "blockchain",         &getmerkleblocks,                    },
-    { "blockchain",         &getchaintips,                       },
-    { "blockchain",         &getdifficulty,                      },
-    { "blockchain",         &getmempoolancestors,                },
-    { "blockchain",         &getmempooldescendants,              },
-    { "blockchain",         &getmempoolentry,                    },
-    { "blockchain",         &getmempoolinfo,                     },
-    { "blockchain",         &getrawmempool,                      },
-    { "blockchain",         &getspecialtxes,                     },
-    { "blockchain",         &gettxout,                           },
-    { "blockchain",         &gettxoutsetinfo,                    },
-    { "blockchain",         &pruneblockchain,                    },
-    { "blockchain",         &savemempool,                        },
-    { "blockchain",         &verifychain,                        },
+{ //  category              name                      actor (function)         argNames
+  //  --------------------- ------------------------  -----------------------  ----------
+    { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      {} },
+    { "blockchain",         "getchaintxstats",        &getchaintxstats,        {"nblocks", "blockhash"} },
+    { "blockchain",         "getblockstats",          &getblockstats,          {"hash_or_height", "stats"} },
+    { "blockchain",         "getbestblockhash",       &getbestblockhash,       {} },
+    { "blockchain",         "getbestchainlock",       &getbestchainlock,       {} },
+    { "blockchain",         "getblockcount",          &getblockcount,          {} },
+    { "blockchain",         "getblock",               &getblock,               {"blockhash","verbosity|verbose"} },
+    { "blockchain",         "getblockfrompeer",       &getblockfrompeer,       {"block_hash", "peer_id"}},
+    { "blockchain",         "getblockhashes",         &getblockhashes,         {"high","low"} },
+    { "blockchain",         "getblockhash",           &getblockhash,           {"height"} },
+    { "blockchain",         "getblockheader",         &getblockheader,         {"blockhash","verbose"} },
+    { "blockchain",         "getblockheaders",        &getblockheaders,        {"blockhash","count","verbose"} },
+    { "blockchain",         "getmerkleblocks",        &getmerkleblocks,        {"filter","blockhash","count"} },
+    { "blockchain",         "getchaintips",           &getchaintips,           {"count","branchlen"} },
+    { "blockchain",         "getdifficulty",          &getdifficulty,          {} },
+    { "blockchain",         "getmempoolancestors",    &getmempoolancestors,    {"txid","verbose"} },
+    { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  {"txid","verbose"} },
+    { "blockchain",         "getmempoolentry",        &getmempoolentry,        {"txid"} },
+    { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         {} },
+    { "blockchain",         "getrawmempool",          &getrawmempool,          {"verbose"} },
+    { "blockchain",         "getspecialtxes",         &getspecialtxes,         {"blockhash", "type", "count", "skip", "verbosity"} },
+    { "blockchain",         "gettxout",               &gettxout,               {"txid","n","include_mempool"} },
+    { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        {"hash_type", "hash_or_height", "use_index"} },
+    { "blockchain",         "pruneblockchain",        &pruneblockchain,        {"height"} },
+    { "blockchain",         "savemempool",            &savemempool,            {} },
+    { "blockchain",         "verifychain",            &verifychain,            {"checklevel","nblocks"} },
 
-    { "blockchain",         &preciousblock,                      },
-    { "blockchain",         &scantxoutset,                       },
-    { "blockchain",         &getblockfilter,                     },
+    { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
+    { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
+    { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
 
     /* Not shown in help */
-    { "hidden",              &invalidateblock,                   },
-    { "hidden",              &reconsiderblock,                   },
-    { "hidden",              &waitfornewblock,                   },
-    { "hidden",              &waitforblock,                      },
-    { "hidden",              &waitforblockheight,                },
-    { "hidden",              &syncwithvalidationinterfacequeue,  },
-    { "hidden",              &dumptxoutset,                      },
+    { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },
+    { "hidden",             "reconsiderblock",        &reconsiderblock,        {"blockhash"} },
+    { "hidden",             "waitfornewblock",        &waitfornewblock,        {"timeout"} },
+    { "hidden",             "waitforblock",           &waitforblock,           {"blockhash","timeout"} },
+    { "hidden",             "waitforblockheight",     &waitforblockheight,     {"height","timeout"} },
+    { "hidden",             "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, {} },
+    { "hidden",             "dumptxoutset",           &dumptxoutset,           {"path"} },
 };
 // clang-format on
     for (const auto& c : commands) {

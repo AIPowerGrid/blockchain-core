@@ -4,12 +4,11 @@
 
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
-#include <evo/evodb.h>
 #include <evo/mnhftx.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
-#include <llmq/quorums.h>
 #include <llmq/signing.h>
+#include <llmq/quorums.h>
 #include <node/blockstorage.h>
 
 #include <chain.h>
@@ -55,8 +54,6 @@ CMNHFManager::~CMNHFManager()
 
 CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pindexPrev)
 {
-    if (!DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return {};
-
     Signals signals = GetForBlock(pindexPrev);
     if (pindexPrev == nullptr) return {};
     const int height = pindexPrev->nHeight + 1;
@@ -119,10 +116,6 @@ bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& 
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-version");
     }
 
-    if (!Params().IsValidMNActivation(mnhfTx.signal.versionBit, pindexPrev->GetMedianTimePast())) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-non-ehf");
-    }
-
     const CBlockIndex* pindexQuorum = WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(mnhfTx.signal.quorumHash));
     if (!pindexQuorum) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-quorum-hash");
@@ -144,6 +137,10 @@ bool CheckMNHFTx(const ChainstateManager& chainman, const llmq::CQuorumManager& 
     if (!mnhfTx.signal.Verify(qman, mnhfTx.signal.quorumHash, mnhfTx.GetRequestId(), msgHash, state)) {
         // set up inside Verify
         return false;
+    }
+
+    if (!Params().IsValidMNActivation(mnhfTx.signal.versionBit, pindexPrev->GetMedianTimePast())) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-non-ehf");
     }
 
     return true;
@@ -232,7 +229,10 @@ std::optional<CMNHFManager::Signals> CMNHFManager::ProcessBlock(const CBlock& bl
             return signals;
         }
         for (const auto& versionBit : new_signals) {
-            signals.insert({versionBit, mined_height});
+            if (Params().IsValidMNActivation(versionBit, pindex->GetMedianTimePast())) {
+                signals.insert({versionBit, mined_height});
+            }
+
         }
 
         AddToCache(signals, pindex);
@@ -319,7 +319,7 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
     }
     {
         LOCK(cs_cache);
-        if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+        if (ThresholdState::ACTIVE != v20_activation.State(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
             mnhfCache.insert(blockHash, signals);
             return signals;
         }
@@ -340,8 +340,10 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         LOCK(cs_cache);
         mnhfCache.insert(blockHash, signals);
     }
-    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
-
+    {
+        LOCK(cs_cache);
+        if (ThresholdState::ACTIVE != v20_activation.State(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
+    }
     m_evoDb.Write(std::make_pair(DB_SIGNALS, blockHash), signals);
 }
 

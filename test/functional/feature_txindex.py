@@ -7,6 +7,8 @@
 # Test txindex generation and fetching
 #
 
+import binascii
+
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxOut
 from test_framework.script import CScript, OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_HASH160
 from test_framework.test_framework import BitcoinTestFramework
@@ -38,14 +40,15 @@ class TxIndexTest(BitcoinTestFramework):
 
     def run_test(self):
         self.log.info("Mining blocks...")
-        self.generate(self.nodes[0], 105)
+        self.nodes[0].generate(105)
+        self.sync_all()
 
         chain_height = self.nodes[1].getblockcount()
         assert_equal(chain_height, 105)
 
         self.log.info("Testing transaction index...")
 
-        addressHash = bytes.fromhex("C5E4FB9171C22409809A3E8047A29C83886E325D")
+        addressHash = binascii.unhexlify("C5E4FB9171C22409809A3E8047A29C83886E325D")
         scriptPubKey = CScript([OP_DUP, OP_HASH160, addressHash, OP_EQUALVERIFY, OP_CHECKSIG])
         unspent = self.nodes[0].listunspent()
         tx = CTransaction()
@@ -57,7 +60,8 @@ class TxIndexTest(BitcoinTestFramework):
 
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
         txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
         # Check verbose raw transaction results
         verbose = self.nodes[3].getrawtransaction(txid, 1)

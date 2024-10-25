@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024 The Dash Core developers
+// Copyright (c) 2017-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -171,9 +171,8 @@ public:
     [[nodiscard]] UniValue ToJson(bool extended = false) const;
 };
 
-bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const ChainstateManager& chainman,
-                               const llmq::CQuorumBlockProcessor& qblockman, const llmq::CQuorumManager& qman,
-                               const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet,
-                               std::string& errorRet, bool extended = false) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const ChainstateManager& chainman, const llmq::CQuorumBlockProcessor& qblockman,
+                               const llmq::CQuorumManager& qman, const uint256& baseBlockHash, const uint256& blockHash,
+                               CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet, bool extended = false);
 
 #endif // BITCOIN_EVO_SIMPLIFIEDMNS_H

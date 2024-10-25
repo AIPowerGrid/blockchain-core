@@ -13,7 +13,6 @@
 #include <compat.h>
 #include <init.h>
 #include <interfaces/chain.h>
-#include <interfaces/init.h>
 #include <node/context.h>
 #include <node/ui_interface.h>
 #include <noui.h>
@@ -110,15 +109,17 @@ int fork_daemon(bool nochdir, bool noclose, TokenPipeEnd& endpoint)
 
 #endif
 
-static bool AppInit(NodeContext& node, int argc, char* argv[])
+static bool AppInit(int argc, char* argv[])
 {
+    NodeContext node;
+
     bool fRet = false;
 
     util::ThreadSetInternalName("init");
 
     // If Qt is used, parameters/dash.conf are parsed in qt/bitcoin.cpp's main()
+    SetupServerArgs(node);
     ArgsManager& args = *Assert(node.args);
-    SetupServerArgs(args);
     std::string error;
     if (!args.ParseParameters(argc, argv, error)) {
         return InitError(Untranslated(strprintf("Error parsing command line arguments: %s\n", error)));
@@ -233,7 +234,7 @@ static bool AppInit(NodeContext& node, int argc, char* argv[])
             // If locking the data directory failed, exit immediately
             return false;
         }
-        fRet = AppInitInterfaces(node) && AppInitMain(node);
+        fRet = AppInitInterfaces(node) && AppInitMain(context, node);
     } catch (...) {
         PrintExceptionContinue(std::current_exception(), "AppInit()");
     }
@@ -263,18 +264,10 @@ MAIN_FUNCTION
     util::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
 #endif
-
-    NodeContext node;
-    int exit_status;
-    std::unique_ptr<interfaces::Init> init = interfaces::MakeNodeInit(node, argc, argv, exit_status);
-    if (!init) {
-        return exit_status;
-    }
-
     SetupEnvironment();
 
     // Connect dashd signal handlers
     noui_connect();
 
-    return (AppInit(node, argc, argv) ? EXIT_SUCCESS : EXIT_FAILURE);
+    return (AppInit(argc, argv) ? EXIT_SUCCESS : EXIT_FAILURE);
 }

@@ -14,7 +14,7 @@ BOOST_FIXTURE_TEST_SUITE(flatfile_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(flatfile_filename)
 {
-    const auto data_dir = m_args.GetDataDirBase();
+    const auto data_dir = m_args.GetDataDirPath();
 
     FlatFilePos pos(456, 789);
 
@@ -23,14 +23,11 @@ BOOST_AUTO_TEST_CASE(flatfile_filename)
 
     FlatFileSeq seq2(data_dir / "a", "b", 16 * 1024);
     BOOST_CHECK_EQUAL(seq2.FileName(pos), data_dir / "a" / "b00456.dat");
-
-    // Check default constructor IsNull
-    assert(FlatFilePos{}.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(flatfile_open)
 {
-    const auto data_dir = m_args.GetDataDirBase();
+    const auto data_dir = m_args.GetDataDirPath();
     FlatFileSeq seq(data_dir, "a", 16 * 1024);
 
     std::string line1("A purely peer-to-peer version of electronic cash would allow online "
@@ -91,7 +88,7 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
 
 BOOST_AUTO_TEST_CASE(flatfile_allocate)
 {
-    const auto data_dir = m_args.GetDataDirBase();
+    const auto data_dir = m_args.GetDataDirPath();
     FlatFileSeq seq(data_dir, "a", 100);
 
     bool out_of_space;
@@ -111,7 +108,7 @@ BOOST_AUTO_TEST_CASE(flatfile_allocate)
 
 BOOST_AUTO_TEST_CASE(flatfile_flush)
 {
-    const auto data_dir = m_args.GetDataDirBase();
+    const auto data_dir = m_args.GetDataDirPath();
     FlatFileSeq seq(data_dir, "a", 100);
 
     bool out_of_space;

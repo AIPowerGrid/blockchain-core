@@ -43,12 +43,12 @@ FUZZ_TARGET_INIT(banman, initialize_banman)
 {
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
     SetMockTime(ConsumeTime(fuzzed_data_provider));
-    fs::path banlist_file = gArgs.GetDataDirNet() / "fuzzed_banlist";
+    fs::path banlist_file = GetDataDir() / "fuzzed_banlist";
 
     const bool start_with_corrupted_banlist{fuzzed_data_provider.ConsumeBool()};
     bool force_read_and_write_to_err{false};
     if (start_with_corrupted_banlist) {
-        assert(WriteBinaryFile(banlist_file + ".json",
+        assert(WriteBinaryFile(banlist_file.string() + ".json",
                                fuzzed_data_provider.ConsumeRandomLengthString()));
     } else {
         force_read_and_write_to_err = fuzzed_data_provider.ConsumeBool();
@@ -111,5 +111,5 @@ FUZZ_TARGET_INIT(banman, initialize_banman)
             assert(banmap == banmap_read);
         }
     }
-    fs::remove(fs::PathToString(banlist_file + ".json"));
+    fs::remove(banlist_file.string() + ".json");
 }

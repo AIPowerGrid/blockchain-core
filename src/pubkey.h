@@ -217,7 +217,8 @@ public:
     EllSwiftPubKey() noexcept = default;
 
     /** Construct a new ellswift public key from a given serialization. */
-    EllSwiftPubKey(Span<const std::byte> ellswift) noexcept;
+    EllSwiftPubKey(const std::array<std::byte, SIZE>& ellswift) :
+        m_pubkey(ellswift) {}
 
     /** Decode to normal compressed CPubKey (for debugging purposes). */
     CPubKey Decode() const;

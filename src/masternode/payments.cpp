@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -246,7 +246,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
 
-    if (!m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+    if (!CSuperblockManager::IsSuperblockTriggered(m_govman, tip_mn_list, nBlockHeight)) {
         // we are on a valid superblock height but a superblock was not triggered
         // revert to block reward limits in this case
         if(!isBlockRewardValueMet) {
@@ -257,7 +257,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
     }
 
     // this actually also checks for correct payees and not only amount
-    if (!m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward)) {
+    if (!CSuperblockManager::IsValid(m_govman, m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward)) {
         // triggered but invalid? that's weird
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); /* Continued */
         // should NOT allow invalid superblocks, when superblocks are enabled
@@ -302,9 +302,8 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
     if (AreSuperblocksEnabled(m_sporkman)) {
         if (!check_superblock) return true;
         const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-        if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
-            if (m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
-                                           blockSubsidy + feeReward)) {
+        if (CSuperblockManager::IsSuperblockTriggered(m_govman, tip_mn_list, nBlockHeight)) {
+            if (CSuperblockManager::IsValid(m_govman, m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight, blockSubsidy + feeReward)) {
                 LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
                 // continue validation, should also pay MN
             } else {
@@ -331,9 +330,9 @@ void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const C
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-    if (AreSuperblocksEnabled(m_sporkman) && m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+    if(AreSuperblocksEnabled(m_sporkman) && CSuperblockManager::IsSuperblockTriggered(m_govman, tip_mn_list, nBlockHeight)) {
         LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Triggered superblock creation at height %d\n", __func__, nBlockHeight);
-        m_govman.GetSuperblockPayments(tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
+        CSuperblockManager::GetSuperblockPayments(m_govman, tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
     }
 
     if (!GetMasternodeTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {

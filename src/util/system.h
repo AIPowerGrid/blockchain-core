@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -75,13 +75,7 @@ void DirectoryCommit(const fs::path &dirname);
 bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
-
-/**
- * Rename src to dest.
- * @return true if the rename was successful.
- */
 [[nodiscard]] bool RenameOver(fs::path src, fs::path dest);
-
 bool LockDirectory(const fs::path& directory, const std::string lockfile_name, bool probe_only=false);
 void UnlockDirectory(const fs::path& directory, const std::string& lockfile_name);
 bool DirIsWritable(const fs::path& directory);
@@ -102,6 +96,7 @@ void ReleaseDirectoryLocks();
 
 bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
+const fs::path &GetDataDir(bool fNetSpecific = true);
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
 fs::path GetConfigFile(const std::string& confPath);
@@ -130,7 +125,7 @@ UniValue RunCommandParseJSON(const std::string& str_command, const std::string& 
  * the datadir if they are not absolute.
  *
  * @param path The path to be conditionally prefixed with datadir.
- * @param net_specific Use network specific datadir variant
+ * @param net_specific Forwarded to GetDataDir().
  * @return The normalized path.
  */
 fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific = true);
@@ -212,7 +207,7 @@ protected:
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
     bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
-    mutable fs::path m_cached_blocks_path GUARDED_BY(cs_args);
+    fs::path m_cached_blocks_path GUARDED_BY(cs_args);
     mutable fs::path m_cached_datadir_path GUARDED_BY(cs_args);
     mutable fs::path m_cached_network_datadir_path GUARDED_BY(cs_args);
 
@@ -225,7 +220,6 @@ protected:
      */
     bool UseDefaultSection(const std::string& arg) const EXCLUSIVE_LOCKS_REQUIRED(cs_args);
 
- public:
     /**
      * Get setting value.
      *
@@ -240,6 +234,7 @@ protected:
      */
     std::vector<util::SettingsValue> GetSettingsList(const std::string& arg) const;
 
+public:
     ArgsManager();
     ~ArgsManager();
 
@@ -288,23 +283,16 @@ protected:
      *
      * @return Blocks path which is network specific
      */
-    const fs::path GetBlocksDirPath() const;
+    const fs::path& GetBlocksDirPath();
 
     /**
      * Get data directory path
      *
+     * @param net_specific Append network identifier to the returned path
      * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
      * @post Returned directory path is created unless it is empty
      */
-    const fs::path GetDataDirBase() const { return GetDataDir(false); }
-
-    /**
-     * Get data directory path with appended network identifier
-     *
-     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
-     * @post Returned directory path is created unless it is empty
-     */
-    const fs::path GetDataDirNet() const { return GetDataDir(true); }
+    const fs::path& GetDataDirPath(bool net_specific = true) const;
 
     fs::path GetBackupsDirPath();
 
@@ -476,15 +464,6 @@ protected:
     void LogArgs() const;
 
 private:
-    /**
-     * Get data directory path
-     *
-     * @param net_specific Append network identifier to the returned path
-     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
-     * @post Returned directory path is created unless it is empty
-     */
-    const fs::path GetDataDir(bool net_specific) const;
-
     // Helper function for LogArgs().
     void logArgsPrefix(
         const std::string& prefix,

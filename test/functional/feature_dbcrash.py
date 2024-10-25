@@ -41,6 +41,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     create_confirmed_utxos,
+    hex_str_to_bytes,
 )
 
 
@@ -203,7 +204,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
                 continue
 
             for _ in range(3):
-                tx.vout.append(CTxOut(output_amount, bytes.fromhex(utxo['scriptPubKey'])))
+                tx.vout.append(CTxOut(output_amount, hex_str_to_bytes(utxo['scriptPubKey'])))
 
             # Sign and send the transaction to get into the mempool
             tx_signed_hex = node.signrawtransactionwithwallet(tx.serialize().hex())['hex']
@@ -217,7 +218,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
 
         # Start by creating a lot of utxos on node3
         initial_height = self.nodes[3].getblockcount()
-        utxo_list = create_confirmed_utxos(self, self.nodes[3].getnetworkinfo()['relayfee'], self.nodes[3], 5000, sync_fun=self.no_op)
+        utxo_list = create_confirmed_utxos(self.nodes[3].getnetworkinfo()['relayfee'], self.nodes[3], 5000)
         self.log.info("Prepped %d utxo entries", len(utxo_list))
 
         # Sync these blocks with the other nodes
@@ -253,12 +254,10 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
             self.log.debug("Mining longer tip")
             block_hashes = []
             while current_height + 1 > self.nodes[3].getblockcount():
-                block_hashes.extend(self.generatetoaddress(
-                    self.nodes[3],
+                block_hashes.extend(self.nodes[3].generatetoaddress(
                     nblocks=min(10, current_height + 1 - self.nodes[3].getblockcount()),
                     # new address to avoid mining a block that has just been invalidated
                     address=self.nodes[3].getnewaddress(),
-                    sync_fun=self.no_op,
                 ))
             self.log.debug("Syncing %d new blocks...", len(block_hashes))
             self.sync_node3blocks(block_hashes)

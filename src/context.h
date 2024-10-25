@@ -1,14 +1,13 @@
-// Copyright (c) 2022-2024 The Dash Core developers
+// Copyright (c) 2022-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_CONTEXT_H
 #define BITCOIN_CONTEXT_H
 
-#include <functional>
 #include <variant>
+#include <optional>
 
-class ArgsManager;
 class ChainstateManager;
 class CTxMemPool;
 class CBlockPolicyEstimator;
@@ -16,8 +15,7 @@ struct LLMQContext;
 struct NodeContext;
 struct WalletContext;
 
-using CoreContext = std::variant<std::monostate,
-                                 std::reference_wrapper<ArgsManager>,
+using CoreContext = std::variant<std::nullopt_t,
                                  std::reference_wrapper<NodeContext>,
                                  std::reference_wrapper<WalletContext>,
                                  std::reference_wrapper<CTxMemPool>,

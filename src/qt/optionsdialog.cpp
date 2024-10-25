@@ -258,9 +258,9 @@ void OptionsDialog::setModel(OptionsModel *_model)
     /* Main */
     connect(ui->prune, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->prune, &QCheckBox::clicked, this, &OptionsDialog::togglePruneWarning);
-    connect(ui->pruneSize, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
-    connect(ui->databaseCache, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
-    connect(ui->threadsScriptVerif, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
+    connect(ui->pruneSize, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
+    connect(ui->databaseCache, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
+    connect(ui->threadsScriptVerif, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
     connect(ui->showMasternodesTab, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->showGovernanceTab, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -270,8 +270,8 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocksTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     /* Display */
-    connect(ui->digits, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
-    connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
+    connect(ui->digits, static_cast<void (QValueComboBox::*)()>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
+    connect(ui->lang, static_cast<void (QValueComboBox::*)()>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
 
     connect(ui->coinJoinEnabled, &QCheckBox::clicked, [=](bool fChecked) {
@@ -296,8 +296,8 @@ void OptionsDialog::setModel(OptionsModel *_model)
         }
     });
 
-    connect(ui->coinJoinDenomsGoal, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::updateCoinJoinDenomGoal);
-    connect(ui->coinJoinDenomsHardCap, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::updateCoinJoinDenomHardCap);
+    connect(ui->coinJoinDenomsGoal, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::updateCoinJoinDenomGoal);
+    connect(ui->coinJoinDenomsHardCap, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::updateCoinJoinDenomHardCap);
 #endif
 }
 
@@ -325,7 +325,6 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-    mapper->addMapping(ui->subFeeFromAmount, OptionsModel::SubFeeFromAmount);
     mapper->addMapping(ui->keepChangeAddress, OptionsModel::KeepChangeAddress);
     mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
     mapper->addMapping(ui->showGovernanceTab, OptionsModel::ShowGovernanceTab);
@@ -486,20 +485,24 @@ void OptionsDialog::updateProxyValidationState()
 
 void OptionsDialog::updateDefaultProxyNets()
 {
-    const std::optional<CNetAddr> ui_proxy_netaddr{LookupHost(ui->proxyIp->text().toStdString(), /*fAllowLookup=*/false)};
-    const CService ui_proxy{ui_proxy_netaddr.value_or(CNetAddr{}), ui->proxyPort->text().toUShort()};
-
     Proxy proxy;
-    bool has_proxy;
+    std::string strProxy;
+    QString strDefaultProxyGUI;
 
-    has_proxy = model->node().getProxy(NET_IPV4, proxy);
-    ui->proxyReachIPv4->setChecked(has_proxy && proxy.proxy == ui_proxy);
+    model->node().getProxy(NET_IPV4, proxy);
+    strProxy = proxy.proxy.ToStringIP() + ":" + proxy.proxy.ToStringPort();
+    strDefaultProxyGUI = ui->proxyIp->text() + ":" + ui->proxyPort->text();
+    (strProxy == strDefaultProxyGUI.toStdString()) ? ui->proxyReachIPv4->setChecked(true) : ui->proxyReachIPv4->setChecked(false);
 
-    has_proxy = model->node().getProxy(NET_IPV6, proxy);
-    ui->proxyReachIPv6->setChecked(has_proxy && proxy.proxy == ui_proxy);
+    model->node().getProxy(NET_IPV6, proxy);
+    strProxy = proxy.proxy.ToStringIP() + ":" + proxy.proxy.ToStringPort();
+    strDefaultProxyGUI = ui->proxyIp->text() + ":" + ui->proxyPort->text();
+    (strProxy == strDefaultProxyGUI.toStdString()) ? ui->proxyReachIPv6->setChecked(true) : ui->proxyReachIPv6->setChecked(false);
 
-    has_proxy = model->node().getProxy(NET_ONION, proxy);
-    ui->proxyReachTor->setChecked(has_proxy && proxy.proxy == ui_proxy);
+    model->node().getProxy(NET_ONION, proxy);
+    strProxy = proxy.proxy.ToStringIP() + ":" + proxy.proxy.ToStringPort();
+    strDefaultProxyGUI = ui->proxyIp->text() + ":" + ui->proxyPort->text();
+    (strProxy == strDefaultProxyGUI.toStdString()) ? ui->proxyReachTor->setChecked(true) : ui->proxyReachTor->setChecked(false);
 }
 
 void OptionsDialog::updateCoinJoinVisibility()

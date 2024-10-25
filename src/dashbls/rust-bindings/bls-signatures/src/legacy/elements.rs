@@ -5,10 +5,6 @@ impl G1Element {
         self.to_bytes_with_legacy_flag(true)
     }
 
-    pub fn serialize(&self) -> Box<[u8; G1_ELEMENT_SIZE]> {
-        self.to_bytes_with_legacy_flag(false)
-    }
-
     pub fn from_bytes_legacy(bytes: &[u8]) -> Result<Self, BlsError> {
         Self::from_bytes_with_legacy_flag(bytes, true)
     }
@@ -25,9 +21,5 @@ impl G2Element {
 
     pub fn serialize_legacy(&self) -> Box<[u8; G2_ELEMENT_SIZE]> {
         self.to_bytes_with_legacy_flag(true)
-    }
-
-    pub fn serialize(&self) -> Box<[u8; G2_ELEMENT_SIZE]> {
-        self.to_bytes_with_legacy_flag(false)
     }
 }

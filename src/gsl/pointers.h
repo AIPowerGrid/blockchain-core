@@ -20,10 +20,12 @@
 #include <gsl/assert.h> // for Ensures, Expects
 #include <source_location.h>
 
+#include <algorithm>    // for forward
 #include <cstddef>      // for ptrdiff_t, nullptr_t, size_t
-#include <memory>       // for shared_ptr, unique_ptr, hash
+#include <memory>       // for shared_ptr, unique_ptr
+#include <system_error> // for hash
 #include <type_traits>  // for enable_if_t, is_convertible, is_assignable
-#include <utility>      // for declval, forward
+#include <utility>      // for declval
 
 #if !defined(GSL_NO_IOSTREAMS)
 #include <iosfwd> // for ostream

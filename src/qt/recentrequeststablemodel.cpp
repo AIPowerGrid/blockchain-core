@@ -17,9 +17,6 @@
 
 #include <utility>
 
-#include <QLatin1Char>
-#include <QLatin1String>
-
 RecentRequestsTableModel::RecentRequestsTableModel(WalletModel *parent) :
     QAbstractTableModel(parent), walletModel(parent)
 {
@@ -129,11 +126,7 @@ void RecentRequestsTableModel::updateAmountColumnTitle()
 /** Gets title for amount column including current display unit if optionsModel reference available. */
 QString RecentRequestsTableModel::getAmountTitle()
 {
-    if (!walletModel->getOptionsModel()) return {};
-    return tr("Requested") +
-           QLatin1String(" (") +
-           BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) +
-           QLatin1Char(')');
+    return (this->walletModel->getOptionsModel() != nullptr) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : "";
 }
 
 QModelIndex RecentRequestsTableModel::index(int row, int column, const QModelIndex &parent) const

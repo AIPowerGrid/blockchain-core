@@ -12,7 +12,6 @@
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
-#include <deploymentstatus.h>
 #include <logging.h>
 #include <tinyformat.h>
 #include <util/ranges_set.h>
@@ -114,21 +113,13 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
     // and at the quorumHash must be active in either the current or previous quorum cycle
     // and the sig must validate against that specific quorumHash.
 
-
     Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypePlatform;
 
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    assert(llmq_params_opt.has_value());
-
-    // We check two quorums before DEPLOYMENT_WITHDRAWALS activation
-    // and "all active quorums + 1 the latest inactive" after activation.
-    const int quorums_to_scan = DeploymentActiveAt(*pindexTip, Params().GetConsensus(), Consensus::DEPLOYMENT_WITHDRAWALS)
-                                    ? (llmq_params_opt->signingActiveQuorumCount + 1)
-                                    : 2;
-    const auto quorums = qman.ScanQuorums(llmqType, pindexTip, quorums_to_scan);
+    // We check at most 2 quorums
+    const auto quorums = qman.ScanQuorums(llmqType, pindexTip, 2);
 
     if (bool isActive = std::any_of(quorums.begin(), quorums.end(), [&](const auto &q) { return q->qc->quorumHash == quorumHash; }); !isActive) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-too-old-quorum");
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-not-active-quorum");
     }
 
     if (static_cast<uint32_t>(pindexTip->nHeight) < requestedHeight || pindexTip->nHeight >= getHeightToExpiry()) {

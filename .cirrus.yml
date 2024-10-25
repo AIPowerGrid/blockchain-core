@@ -87,7 +87,7 @@ task:
     FILE_ENV: "./ci/test/00_setup_env_i686_centos.sh"
 
 task:
-  name: '[previous releases, uses qt5 dev package and some depends packages, DEBUG] [unsigned char] [focal]'
+  name: '[previous releases, uses qt5 dev package and some depends packages] [unsigned char] [focal]'
   # For faster CI feedback, immediately schedule a task that compiles most modules
   << : *CREDITS_TEMPLATE
   << : *GLOBAL_TASK_TEMPLATE
@@ -116,10 +116,10 @@ task:
     FILE_ENV: "./ci/test/00_setup_env_native_msan.sh"
 
 task:
-  name: '[no depends, sanitizers: address/leak (ASan + LSan) + undefined (UBSan) + integer] [hirsute]'
+  name: '[no depends, sanitizers: address/leak (ASan + LSan) + undefined (UBSan) + integer] [focal]'
   << : *GLOBAL_TASK_TEMPLATE
   container:
-    image: ubuntu:hirsute
+    image: ubuntu:focal
   env:
     FILE_ENV: "./ci/test/00_setup_env_native_asan.sh"
 
@@ -128,21 +128,15 @@ task:
   << : *GLOBAL_TASK_TEMPLATE
   container:
     image: ubuntu:focal
-    cpu: 4  # Increase CPU and memory to avoid timeout
-    memory: 16G
   env:
-    MAKEJOBS: "-j8"
     FILE_ENV: "./ci/test/00_setup_env_native_fuzz.sh"
 
 task:
-  name: '[multiprocess, DEBUG] [focal]'
+  name: '[multiprocess] [focal]'
   << : *GLOBAL_TASK_TEMPLATE
   container:
     image: ubuntu:focal
-    cpu: 4
-    memory: 16G  # The default memory is sometimes just a bit too small, so double everything
   env:
-    MAKEJOBS: "-j8"
     FILE_ENV: "./ci/test/00_setup_env_native_multiprocess.sh"
 
 task:
@@ -163,12 +157,12 @@ task:
 
 task:
   name: 'macOS 11 native [gui] [no depends]'
-  brew_install_script:
-    - brew install boost libevent berkeley-db@4 qt@5 miniupnpc ccache zeromq qrencode sqlite libtool automake pkg-config gnu-getopt
+  macos_brew_addon_script:
+    - brew install boost libevent berkeley-db4 qt miniupnpc ccache zeromq qrencode sqlite libtool automake pkg-config gnu-getopt
   << : *GLOBAL_TASK_TEMPLATE
   macos_instance:
     # Use latest image, but hardcode version to avoid silent upgrades (and breaks)
-    image: big-sur-xcode-12.5  # https://cirrus-ci.org/guide/macOS
+    image: big-sur-xcode-12.4  # https://cirrus-ci.org/guide/macOS
   env:
     DANGER_RUN_CI_ON_HOST: "true"
     CI_USE_APT_INSTALL: "no"

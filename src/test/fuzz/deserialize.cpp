@@ -15,16 +15,13 @@
 #include <merkleblock.h>
 #include <net.h>
 #include <netbase.h>
-#include <netgroup.h>
 #include <node/utxo_snapshot.h>
 #include <primitives/block.h>
 #include <protocol.h>
 #include <psbt.h>
 #include <script/sign.h>
 #include <streams.h>
-#include <test/util/setup_common.h>
 #include <undo.h>
-#include <util/system.h>
 #include <version.h>
 
 #include <exception>
@@ -35,14 +32,8 @@
 
 #include <test/fuzz/fuzz.h>
 
-namespace {
-const BasicTestingSetup* g_setup;
-} // namespace
-
 void initialize_deserialize()
 {
-    static const auto testing_setup = MakeNoLogFileContext<>();
-    g_setup = testing_setup.get();
 }
 
 #define FUZZ_TARGET_DESERIALIZE(name, code)                \
@@ -199,10 +190,7 @@ FUZZ_TARGET_DESERIALIZE(blockmerkleroot, {
     BlockMerkleRoot(block, &mutated);
 })
 FUZZ_TARGET_DESERIALIZE(addrman_deserialize, {
-    NetGroupManager netgroupman{std::vector<bool>()};
-    AddrMan am(netgroupman,
-               /*deterministic=*/false,
-               g_setup->m_node.args->GetArg("-checkaddrman", 0));
+    AddrMan am(/* asmap */ std::vector<bool>(), /* deterministic */ false, /* consistency_check_ratio */ 0);
     DeserializeFromFuzzingInput(buffer, am);
 })
 FUZZ_TARGET_DESERIALIZE(blockheader_deserialize, {

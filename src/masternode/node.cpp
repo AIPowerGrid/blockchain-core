@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,42 +14,6 @@
 #include <util/check.h>
 #include <validation.h>
 #include <warnings.h>
-
-namespace {
-bool GetLocal(CService& addr, const CNetAddr* paddrPeer)
-{
-    if (!fListen)
-        return false;
-
-    int nBestScore = -1;
-    {
-        LOCK(g_maplocalhost_mutex);
-        int nBestReachability = -1;
-        for (const auto& entry : mapLocalHost)
-        {
-            // For privacy reasons, don't advertise our privacy-network address
-            // to other networks and don't advertise our other-network address
-            // to privacy networks.
-            const Network our_net{entry.first.GetNetwork()};
-            const Network peers_net{paddrPeer->GetNetwork()};
-            if (our_net != peers_net &&
-                (our_net == NET_ONION || our_net == NET_I2P ||
-                 peers_net == NET_ONION || peers_net == NET_I2P)) {
-                continue;
-            }
-            int nScore = entry.second.nScore;
-            int nReachability = entry.first.GetReachabilityFrom(*paddrPeer);
-            if (nReachability > nBestReachability || (nReachability == nBestReachability && nScore > nBestScore))
-            {
-                addr = CService(entry.first, entry.second.nPort);
-                nBestReachability = nReachability;
-                nBestScore = nScore;
-            }
-        }
-    }
-    return nBestScore >= 0;
-}
-} // anonymous namespace
 
 CActiveMasternodeManager::CActiveMasternodeManager(const CBLSSecretKey& sk, CConnman& connman, const std::unique_ptr<CDeterministicMNManager>& dmnman) :
     m_info(sk, sk.GetPublicKey()),
@@ -154,11 +118,11 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
     }
 
     // Check socket connectivity
-    LogPrintf("CActiveMasternodeManager::Init -- Checking inbound connection to '%s'\n", m_info.service.ToStringAddrPort());
+    LogPrintf("CActiveMasternodeManager::Init -- Checking inbound connection to '%s'\n", m_info.service.ToString());
     std::unique_ptr<Sock> sock = CreateSock(m_info.service);
     if (!sock) {
         m_state = MASTERNODE_ERROR;
-        m_error = "Could not create socket to connect to " + m_info.service.ToStringAddrPort();
+        m_error = "Could not create socket to connect to " + m_info.service.ToString();
         LogPrintf("CActiveMasternodeManager::Init -- ERROR: %s\n", m_error);
         return;
     }
@@ -167,7 +131,7 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
 
     if (!fConnected && Params().RequireRoutableExternalIP()) {
         m_state = MASTERNODE_ERROR;
-        m_error = "Could not connect to " + m_info.service.ToStringAddrPort();
+        m_error = "Could not connect to " + m_info.service.ToString();
         LogPrintf("CActiveMasternodeManager::Init -- ERROR: %s\n", m_error);
         return;
     }
@@ -224,13 +188,13 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
     // Addresses could be specified via externalip or bind option, discovered via UPnP
     // or added by TorController. Use some random dummy IPv4 peer to prefer the one
     // reachable via IPv4.
+    CNetAddr addrDummyPeer;
     bool fFoundLocal{false};
-    if (auto peerAddr = LookupHost("8.8.8.8", false); peerAddr.has_value()) {
-        fFoundLocal = GetLocal(addrRet, &peerAddr.value()) && IsValidNetAddr(addrRet);
+    if (LookupHost("8.8.8.8", addrDummyPeer, false)) {
+        fFoundLocal = GetLocal(addrRet, &addrDummyPeer) && IsValidNetAddr(addrRet);
     }
     if (!fFoundLocal && !Params().RequireRoutableExternalIP()) {
-        if (auto addr = Lookup("127.0.0.1", GetListenPort(), false); addr.has_value()) {
-            addrRet = addr.value();
+        if (Lookup("127.0.0.1", addrRet, GetListenPort(), false)) {
             fFoundLocal = true;
         }
     }
@@ -240,7 +204,8 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
         auto service = m_info.service;
         m_connman.ForEachNodeContinueIf(CConnman::AllNodes, [&](CNode* pnode) {
             empty = false;
-            if (pnode->addr.IsIPv4()) fFoundLocal = GetLocal(service, *pnode) && IsValidNetAddr(service);
+            if (pnode->addr.IsIPv4())
+                fFoundLocal = GetLocal(service, &pnode->addr) && IsValidNetAddr(service);
             return !fFoundLocal;
         });
         // nothing and no live connections, can't do anything for now

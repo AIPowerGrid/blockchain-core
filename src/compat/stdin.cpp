@@ -62,7 +62,7 @@ bool StdinReady()
     return false;
 #else
     struct pollfd fds;
-    fds.fd = STDIN_FILENO;
+    fds.fd = 0; /* this is STDIN */
     fds.events = POLLIN;
     return poll(&fds, 1, 0) == 1;
 #endif

@@ -200,7 +200,8 @@ public:
     bool IsAddrV1Compatible() const;
 
     enum Network GetNetwork() const;
-    std::string ToStringAddr() const;
+    std::string ToString() const;
+    std::string ToStringIP() const;
     uint64_t GetHash() const;
     bool GetInAddr(struct in_addr* pipv4Addr) const;
     Network GetNetClass() const;
@@ -210,8 +211,14 @@ public:
     //! Whether this address has a linked IPv4 address (see GetLinkedIPv4()).
     bool HasLinkedIPv4() const;
 
+    // The AS on the BGP path to the node we use to diversify
+    // peers in AddrMan bucketing based on the AS infrastructure.
+    // The ip->AS mapping depends on how asmap is constructed.
+    uint32_t GetMappedAS(const std::vector<bool> &asmap) const;
+
+    std::vector<unsigned char> GetGroup(const std::vector<bool> &asmap) const;
     std::vector<unsigned char> GetAddrBytes() const;
-    int GetReachabilityFrom(const CNetAddr& paddrPartner) const;
+    int GetReachabilityFrom(const CNetAddr *paddrPartner = nullptr) const;
 
     explicit CNetAddr(const struct in6_addr& pipv6Addr, const uint32_t scope = 0);
     bool GetIn6Addr(struct in6_addr* pipv6Addr) const;
@@ -544,7 +551,9 @@ public:
     friend bool operator!=(const CService& a, const CService& b) { return !(a == b); }
     friend bool operator<(const CService& a, const CService& b);
     std::vector<unsigned char> GetKey() const;
-    std::string ToStringAddrPort() const;
+    std::string ToString() const;
+    std::string ToStringPort() const;
+    std::string ToStringIPPort() const;
 
     CService(const struct in6_addr& ipv6Addr, uint16_t port);
     explicit CService(const struct sockaddr_in6& addr);

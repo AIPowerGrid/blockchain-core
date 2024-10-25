@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -103,37 +103,37 @@ private:
     Governance::Object m_obj;
 
     /// time this object was marked for deletion
-    int64_t nDeletionTime{0};
+    int64_t nDeletionTime;
 
 
     /// is valid by blockchain
-    bool fCachedLocalValidity{false};
+    bool fCachedLocalValidity;
     std::string strLocalValidityError;
 
     // VARIOUS FLAGS FOR OBJECT / SET VIA MASTERNODE VOTING
 
     /// true == minimum network support has been reached for this object to be funded (doesn't mean it will for sure though)
-    bool fCachedFunding{false};
+    bool fCachedFunding;
 
     /// true == minimum network has been reached flagging this object as a valid and understood governance object (e.g, the serialized data is correct format, etc)
-    bool fCachedValid{true};
+    bool fCachedValid;
 
     /// true == minimum network support has been reached saying this object should be deleted from the system entirely
-    bool fCachedDelete{false};
+    bool fCachedDelete;
 
     /** true == minimum network support has been reached flagging this object as endorsed by an elected representative body
      * (e.g. business review board / technical review board /etc)
      */
-    bool fCachedEndorsed{false};
+    bool fCachedEndorsed;
 
     /// object was updated and cached values should be updated soon
-    bool fDirtyCache{true};
+    bool fDirtyCache;
 
     /// Object is no longer of interest
-    bool fExpired{false};
+    bool fExpired;
 
     /// Failed to parse object data
-    bool fUnparsable{false};
+    bool fUnparsable;
 
     vote_m_t mapCurrentMNVotes;
 
@@ -235,8 +235,7 @@ public:
     /// Check the collateral transaction for the budget proposal/finalized budget
     bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman)
-        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman);
 
     void UpdateSentinelVariables(const CDeterministicMNList& tip_mn_list);
 

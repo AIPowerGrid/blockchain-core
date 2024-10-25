@@ -14,7 +14,6 @@
 #include <masternode/node.h>
 #include <masternode/sync.h>
 #include <messagesigner.h>
-#include <net_processing.h>
 #include <netmessagemaker.h>
 #include <txmempool.h>
 #include <util/moneystr.h>
@@ -47,7 +46,6 @@ uint256 CCoinJoinQueue::GetSignatureHash() const
 {
     return SerializeHash(*this, SER_GETHASH, PROTOCOL_VERSION);
 }
-uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this, SER_NETWORK, PROTOCOL_VERSION); }
 
 bool CCoinJoinQueue::Sign(const CActiveMasternodeManager& mn_activeman)
 {
@@ -71,13 +69,11 @@ bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
     return true;
 }
 
-bool CCoinJoinQueue::Relay(CConnman& connman, PeerManager& peerman)
+bool CCoinJoinQueue::Relay(CConnman& connman)
 {
-    CInv inv(MSG_DSQ, GetHash());
-    peerman.RelayInv(inv, DSQ_INV_VERSION);
     connman.ForEachNode([&connman, this](CNode* pnode) {
         CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-        if (pnode->fSendDSQueue && pnode->nVersion < DSQ_INV_VERSION) {
+        if (pnode->fSendDSQueue) {
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSQUEUE, (*this)));
         }
     });
@@ -308,11 +304,10 @@ bool CCoinJoinBaseSession::IsValidInOuts(CChainState& active_chainstate, const C
 
 // Responsibility for checking fee sanity is moved from the mempool to the client (BroadcastTransaction)
 // but CoinJoin still requires ATMP with fee sanity checks so we need to implement them separately
-bool ATMPIfSaneFee(ChainstateManager& chainman, const CTransactionRef& tx, bool test_accept)
-{
+bool ATMPIfSaneFee(CChainState& active_chainstate, CTxMemPool& pool, const CTransactionRef &tx, bool test_accept) {
     AssertLockHeld(cs_main);
 
-    const MempoolAcceptResult result = chainman.ProcessTransaction(tx, /*test_accept=*/true);
+    const MempoolAcceptResult result = AcceptToMemoryPool(active_chainstate, pool, tx, /* bypass_limits */ false, /* test_accept */ true);
     if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
         /* Fetch fee and fast-fail if ATMP fails regardless */
         return false;
@@ -323,11 +318,11 @@ bool ATMPIfSaneFee(ChainstateManager& chainman, const CTransactionRef& tx, bool 
         /* Don't re-run ATMP if only doing test run */
         return true;
     }
-    return chainman.ProcessTransaction(tx, test_accept).m_result_type == MempoolAcceptResult::ResultType::VALID;
+    return AcceptToMemoryPool(active_chainstate, pool, tx, /* bypass_limits */ false, test_accept).m_result_type == MempoolAcceptResult::ResultType::VALID;
 }
 
 // check to make sure the collateral provided by the client is valid
-bool CoinJoin::IsCollateralValid(ChainstateManager& chainman, const CTxMemPool& mempool, const CTransaction& txCollateral)
+bool CoinJoin::IsCollateralValid(CChainState& active_chainstate, CTxMemPool& mempool, const CTransaction& txCollateral)
 {
     if (txCollateral.vout.empty()) return false;
     if (txCollateral.nLockTime != 0) return false;
@@ -353,7 +348,7 @@ bool CoinJoin::IsCollateralValid(ChainstateManager& chainman, const CTxMemPool& 
                 return false;
             }
             nValueIn += mempoolTx->vout[txin.prevout.n].nValue;
-        } else if (GetUTXOCoin(chainman.ActiveChainstate(), txin.prevout, coin)) {
+        } else if (GetUTXOCoin(active_chainstate, txin.prevout, coin)) {
             nValueIn += coin.out.nValue;
         } else {
             LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- Unknown inputs in collateral transaction, txCollateral=%s", txCollateral.ToString()); /* Continued */
@@ -371,8 +366,8 @@ bool CoinJoin::IsCollateralValid(ChainstateManager& chainman, const CTxMemPool& 
 
     {
         LOCK(cs_main);
-        if (!ATMPIfSaneFee(chainman, MakeTransactionRef(txCollateral), /*test_accept=*/true)) {
-            LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- didn't pass ATMPIfSaneFee()\n");
+        if (!ATMPIfSaneFee(active_chainstate, mempool, MakeTransactionRef(txCollateral), /*test_accept=*/true)) {
+            LogPrint(BCLog::COINJOIN, "CoinJoin::IsCollateralValid -- didn't pass AcceptToMemoryPool()\n");
             return false;
         }
     }

@@ -20,7 +20,6 @@ class CScriptID;
 class CTransaction;
 class SigningProvider;
 
-struct bilingual_str;
 struct CMutableTransaction;
 
 /** Interface for signature creators. */
@@ -164,6 +163,6 @@ void UpdateInput(CTxIn& input, const SignatureData& data);
 bool IsSolvable(const SigningProvider& provider, const CScript& script);
 
 /** Sign the CMutableTransaction */
-bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* provider, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors);
+bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* provider, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, std::string>& input_errors);
 
 #endif // BITCOIN_SCRIPT_SIGN_H

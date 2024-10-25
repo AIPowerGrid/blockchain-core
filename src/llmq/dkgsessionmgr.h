@@ -5,10 +5,10 @@
 #ifndef BITCOIN_LLMQ_DKGSESSIONMGR_H
 #define BITCOIN_LLMQ_DKGSESSIONMGR_H
 
-#include <bls/bls.h>
-#include <bls/bls_ies.h>
-#include <bls/bls_worker.h>
 #include <llmq/dkgsessionhandler.h>
+#include <llmq/dkgsession.h>
+#include <bls/bls.h>
+#include <bls/bls_worker.h>
 #include <net_types.h>
 
 #include <map>
@@ -23,10 +23,6 @@ class CDKGDebugManager;
 class CMasternodeMetaMan;
 class CSporkManager;
 class PeerManager;
-class CDKGContribution;
-class CDKGComplaint;
-class CDKGJustification;
-class CDKGPrematureCommitment;
 
 class UniValue;
 
@@ -75,7 +71,7 @@ public:
                        CDKGDebugManager& _dkgDebugManager, CMasternodeMetaMan& mn_metaman, CQuorumBlockProcessor& _quorumBlockProcessor,
                        const CActiveMasternodeManager* const mn_activeman, const CSporkManager& sporkman,
                        const std::unique_ptr<PeerManager>& peerman, bool unitTests, bool fWipe);
-    ~CDKGSessionManager();
+    ~CDKGSessionManager() = default;
 
     void StartThreads();
     void StopThreads();

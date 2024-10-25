@@ -20,9 +20,9 @@ bilingual_str TransactionErrorString(const TransactionError err)
         case TransactionError::P2P_DISABLED:
             return Untranslated("Peer-to-peer functionality missing or disabled");
         case TransactionError::MEMPOOL_REJECTED:
-            return Untranslated("Transaction rejected by mempool");
+            return Untranslated("Transaction rejected by AcceptToMemoryPool");
         case TransactionError::MEMPOOL_ERROR:
-            return Untranslated("Mempool internal error");
+            return Untranslated("AcceptToMemoryPool failed");
         case TransactionError::INVALID_PSBT:
             return Untranslated("PSBT is not well-formed");
         case TransactionError::PSBT_MISMATCH:

@@ -26,13 +26,19 @@ FUZZ_TARGET_INIT(bip324_cipher_roundtrip, initialize_bip324)
     // Load keys from fuzzer.
     FuzzedDataProvider provider(buffer.data(), buffer.size());
     // Initiator key
-    CKey init_key = ConsumePrivateKey(provider, /*compressed=*/true);
+    auto init_key_data = provider.ConsumeBytes<unsigned char>(32);
+    init_key_data.resize(32);
+    CKey init_key;
+    init_key.Set(init_key_data.begin(), init_key_data.end(), true);
     if (!init_key.IsValid()) return;
     // Initiator entropy
     auto init_ent = provider.ConsumeBytes<std::byte>(32);
     init_ent.resize(32);
     // Responder key
-    CKey resp_key = ConsumePrivateKey(provider, /*compressed=*/true);
+    auto resp_key_data = provider.ConsumeBytes<unsigned char>(32);
+    resp_key_data.resize(32);
+    CKey resp_key;
+    resp_key.Set(resp_key_data.begin(), resp_key_data.end(), true);
     if (!resp_key.IsValid()) return;
     // Responder entropy
     auto resp_ent = provider.ConsumeBytes<std::byte>(32);
@@ -94,7 +100,7 @@ FUZZ_TARGET_INIT(bip324_cipher_roundtrip, initialize_bip324)
             unsigned damage_bit = provider.ConsumeIntegralInRange<unsigned>(0,
                 (ciphertext.size() + aad.size()) * 8U - 1U);
             unsigned damage_pos = damage_bit >> 3;
-            std::byte damage_val{(uint8_t)(1U << (damage_bit & 7))};
+            std::byte damage_val{(uint8_t)(1U << (damage_bit & 3))};
             if (damage_pos >= ciphertext.size()) {
                 aad[damage_pos - ciphertext.size()] ^= damage_val;
             } else {

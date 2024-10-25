@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Useful Script constants and utils."""
 from test_framework.script import CScript, hash160, OP_DUP, OP_HASH160, OP_CHECKSIG, OP_EQUAL, OP_EQUALVERIFY
+from test_framework.util import hex_str_to_bytes
 
 # To prevent a "tx-size-small" policy rule error, a transaction has to have a
 # size of at least 83 bytes (MIN_STANDARD_TX_SIZE in
@@ -43,14 +44,14 @@ def script_to_p2sh_script(script, main = False):
 
 def check_key(key):
     if isinstance(key, str):
-        key = bytes.fromhex(key) # Assuming this is hex string
+        key = hex_str_to_bytes(key) # Assuming this is hex string
     if isinstance(key, bytes) and (len(key) == 33 or len(key) == 65):
         return key
     assert False
 
 def check_script(script):
     if isinstance(script, str):
-        script = bytes.fromhex(script) # Assuming this is hex string
+        script = hex_str_to_bytes(script) # Assuming this is hex string
     if isinstance(script, bytes) or isinstance(script, CScript):
         return script
     assert False

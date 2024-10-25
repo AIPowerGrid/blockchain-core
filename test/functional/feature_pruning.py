@@ -11,10 +11,6 @@ This test takes 30 mins or more (up to 2 hours)
 import os
 
 from test_framework.blocktools import create_coinbase
-from test_framework.governance import (
-    EXPECTED_STDERR_NO_GOV,
-    EXPECTED_STDERR_NO_GOV_PRUNE,
-)
 from test_framework.messages import CBlock
 from test_framework.script import (
     CScript,
@@ -33,12 +29,8 @@ from test_framework.util import (
 # compatible with pruning based on key creation time.
 TIMESTAMP_WINDOW = 2 * 60 * 60
 
-DEPLOYMENT_ARGS = [
-    "-dip3params=2000:2000",
-    "-testactivationheight=dip0001@2000",
-    "-testactivationheight=dip0008@2000",
-    "-testactivationheight=v20@2000",
-]
+EXPECTED_STDERR_NO_GOV = "Warning: You are starting with governance validation disabled."
+EXPECTED_STDERR_NO_GOV_PRUNE = EXPECTED_STDERR_NO_GOV + " This is expected because you are running a pruned node."
 
 def mine_large_blocks(node, n):
     # Make a large scriptPubKey for the coinbase transaction. This is OP_RETURN
@@ -94,16 +86,16 @@ class PruneTest(BitcoinTestFramework):
 
         # Create nodes 0 and 1 to mine.
         # Create node 2 to test pruning.
-        self.full_node_default_args = ["-maxreceivebuffer=20000", "-blockmaxsize=999000", "-checkblocks=5"] + DEPLOYMENT_ARGS
+        self.full_node_default_args = ["-dip3params=2000:2000", "-dip8params=2000", "-maxreceivebuffer=20000", "-blockmaxsize=999000", "-checkblocks=5"]
         # Create nodes 3 and 4 to test manual pruning (they will be re-started with manual pruning later)
         # Create nodes 5 to test wallet in prune mode, but do not connect
         self.extra_args = [
             self.full_node_default_args,
             self.full_node_default_args,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-prune=550"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-prune=550"] + DEPLOYMENT_ARGS,
+            ["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-prune=550"],
+            ["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"],
+            ["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"],
+            ["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance","-txindex=0","-prune=550"],
         ]
         self.rpc_timeout = 120
 
@@ -127,8 +119,9 @@ class PruneTest(BitcoinTestFramework):
 
     def create_big_chain(self):
         # Start by creating some coinbases we can spend later
-        self.generate(self.nodes[1], 200, sync_fun=lambda: self.sync_blocks(self.nodes[0:2]))
-        self.generate(self.nodes[0], 150, sync_fun=self.no_op)
+        self.nodes[1].generate(200)
+        self.sync_blocks(self.nodes[0:2])
+        self.nodes[0].generate(150)
 
         # Then mine enough full blocks to create more than 550MiB of data
         mine_large_blocks(self.nodes[0], 645)
@@ -149,9 +142,13 @@ class PruneTest(BitcoinTestFramework):
             expected_msg='Error: Prune mode is incompatible with -txindex.',
             extra_args=['-prune=550', '-txindex'],
         )
+        # self.nodes[0].assert_start_raises_init_error(
+        #     expected_msg='Error: Prune mode is incompatible with -coinstatsindex.',
+        #     extra_args=['-prune=550', '-coinstatsindex'],
+        # )
         self.nodes[0].assert_start_raises_init_error(
-            expected_msg='Error: Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.',
-            extra_args=['-prune=550', '-reindex-chainstate'],
+            expected_msg='Error: Prune mode is incompatible with -blockfilterindex.',
+            extra_args=['-prune=550', '-blockfilterindex'],
         )
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune mode is incompatible with -disablegovernance=false.',
@@ -220,13 +217,13 @@ class PruneTest(BitcoinTestFramework):
         self.log.info("New best height: %d" % self.nodes[1].getblockcount())
 
         # Mine one block to avoid automatic recovery from forks on restart
-        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
+        self.nodes[1].generate(1)
         # Disconnect node1 and generate the new chain
         self.disconnect_nodes(0, 1)
         self.disconnect_nodes(1, 2)
 
         self.log.info("Generating new longer chain of 300 more blocks")
-        self.generate(self.nodes[1], 299, sync_fun=self.no_op)
+        self.nodes[1].generate(299)
 
         self.log.info("Reconnect nodes")
         self.connect_nodes(0, 1)
@@ -278,7 +275,7 @@ class PruneTest(BitcoinTestFramework):
             self.nodes[0].invalidateblock(curchainhash)
             assert_equal(self.nodes[0].getblockcount(), self.mainchainheight)
             assert_equal(self.nodes[0].getbestblockhash(), self.mainchainhash2)
-            goalbesthash = self.generate(self.nodes[0], blocks_to_mine, sync_fun=self.no_op)[-1]
+            goalbesthash = self.nodes[0].generate(blocks_to_mine)[-1]
             goalbestheight = first_reorg_height + 1
 
         self.log.info("Verify node 2 reorged back to the main chain, some blocks of which it had to redownload")
@@ -290,13 +287,13 @@ class PruneTest(BitcoinTestFramework):
 
     def manual_test(self, node_number, use_timestamp):
         # at this point, node has 995 blocks and has not yet run in prune mode
-        self.start_node(node_number, extra_args=["-disablegovernance", "-txindex=0"] + DEPLOYMENT_ARGS)
+        self.start_node(node_number, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance", "-txindex=0"])
         node = self.nodes[node_number]
         assert_equal(node.getblockcount(), 995)
         assert_raises_rpc_error(-1, "Cannot prune blocks because node is not in prune mode", node.pruneblockchain, 500)
 
         # now re-start in manual pruning mode
-        self.restart_node(node_number, extra_args=["-disablegovernance", "-txindex=0", "-prune=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV)
+        self.restart_node(node_number, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance", "-txindex=0", "-prune=1"], expected_stderr=EXPECTED_STDERR_NO_GOV)
         node = self.nodes[node_number]
         assert_equal(node.getblockcount(), 995)
 
@@ -321,7 +318,7 @@ class PruneTest(BitcoinTestFramework):
         assert_equal(block1_details["nTx"], len(block1_details["tx"]))
 
         # mine 6 blocks so we are at height 1001 (i.e., above PruneAfterHeight)
-        self.generate(node, 6, sync_fun=self.no_op)
+        node.generate(6)
         assert_equal(node.getblockchaininfo()["blocks"], 1001)
 
         # prune parameter in the future (block or timestamp) should raise an exception
@@ -359,20 +356,20 @@ class PruneTest(BitcoinTestFramework):
         assert has_block(2), "blk00002.dat is still there, should be pruned by now"
 
         # advance the tip so blk00002.dat and blk00003.dat can be pruned (the last 288 blocks should now be in blk00004.dat)
-        self.generate(node, 288, sync_fun=self.no_op)
+        node.generate(288)
         prune(1000)
         assert not has_block(2), "blk00002.dat is still there, should be pruned by now"
         assert not has_block(3), "blk00003.dat is still there, should be pruned by now"
 
         # stop node, start back up with auto-prune at 550 MiB, make sure still runs
-        self.restart_node(node_number, extra_args=["-disablegovernance", "-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(node_number, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance", "-txindex=0", "-prune=550"], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
 
         self.log.info("Success")
 
     def wallet_test(self):
         # check that the pruning node's wallet is still in good shape
         self.log.info("Stop and start pruning node to trigger wallet rescan")
-        self.restart_node(2, extra_args=["-disablegovernance", "-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(2, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance", "-txindex=0", "-prune=550"], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
         self.log.info("Success")
 
         # check that wallet loads successfully when restarting a pruned node after IBD.
@@ -381,7 +378,7 @@ class PruneTest(BitcoinTestFramework):
         self.connect_nodes(0, 5)
         nds = [self.nodes[0], self.nodes[5]]
         self.sync_blocks(nds, wait=5, timeout=300)
-        self.restart_node(5, extra_args=["-disablegovernance", "-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE) # restart to trigger rescan
+        self.restart_node(5, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-disablegovernance", "-txindex=0", "-prune=550"], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE) # restart to trigger rescan
         self.log.info("Success")
 
     def run_test(self):

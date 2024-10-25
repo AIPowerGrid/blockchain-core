@@ -33,7 +33,7 @@ import lief
 # See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html for more info.
 
 MAX_VERSIONS = {
-'GCC':       (4,3,0),
+'GCC':       (4,8,0),
 'GLIBC': {
     lief.ELF.ARCH.x86_64: (2,31),
     lief.ELF.ARCH.ARM:    (2,31),
@@ -144,22 +144,22 @@ PE_ALLOWED_LIBRARIES = {
 'KERNEL32.dll', # win32 base APIs
 'msvcrt.dll', # C standard library for MSVC
 'SHELL32.dll', # shell API
+'USER32.dll', # user interface
 'WS2_32.dll', # sockets
 'bcrypt.dll',
 # bitcoin-qt only
 'dwmapi.dll', # desktop window manager
 'GDI32.dll', # graphics device interface
 'IMM32.dll', # input method editor
-'NETAPI32.dll', # network management
+'NETAPI32.dll',
 'ole32.dll', # component object model
 'OLEAUT32.dll', # OLE Automation API
 'SHLWAPI.dll', # light weight shell API
-'USER32.dll', # user interface
-'USERENV.dll', # user management
-'UxTheme.dll', # visual style
+'USERENV.dll',
+'UxTheme.dll',
 'VERSION.dll', # version checking
 'WINMM.dll', # WinMM audio API
-'WTSAPI32.dll', # Remote Desktop
+'WTSAPI32.dll',
 }
 
 def check_version(max_versions, version, arch) -> bool:

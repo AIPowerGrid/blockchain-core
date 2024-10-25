@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 The Dash Core developers
+// Copyright (c) 2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,6 +8,7 @@
 #include <coins.h>
 
 #include <evo/assetlocktx.h>
+#include <evo/evodb.h>
 
 #include <saltedhasher.h>
 #include <serialize.h>
@@ -22,7 +23,6 @@
 class BlockManager;
 class CBlockIndex;
 class BlockValidationState;
-class CEvoDB;
 class TxValidationState;
 namespace Consensus {
 struct Params;

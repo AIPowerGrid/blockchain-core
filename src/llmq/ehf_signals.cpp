@@ -14,19 +14,26 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <index/txindex.h> // g_txindex
+#include <net_processing.h>
 #include <primitives/transaction.h>
+#include <spork.h>
+#include <txmempool.h>
 #include <validation.h>
 
 namespace llmq {
 
 
-CEHFSignalsHandler::CEHFSignalsHandler(ChainstateManager& chainman, CMNHFManager& mnhfman, CSigningManager& sigman,
-                                       CSigSharesManager& shareman, const CQuorumManager& qman) :
-    m_chainman(chainman),
+CEHFSignalsHandler::CEHFSignalsHandler(CChainState& chainstate, CMNHFManager& mnhfman, CSigningManager& sigman,
+                                       CSigSharesManager& shareman, CTxMemPool& mempool, const CQuorumManager& qman,
+                                       const CSporkManager& sporkman, const std::unique_ptr<PeerManager>& peerman) :
+    chainstate(chainstate),
     mnhfman(mnhfman),
     sigman(sigman),
     shareman(shareman),
-    qman(qman)
+    mempool(mempool),
+    qman(qman),
+    sporkman(sporkman),
+    m_peerman(peerman)
 {
     sigman.RegisterRecoveredSigsListener(this);
 }
@@ -41,7 +48,7 @@ void CEHFSignalsHandler::UpdatedBlockTip(const CBlockIndex* const pindexNew, boo
 {
     if (!DeploymentActiveAfter(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
 
-    if (!is_masternode) {
+    if (!is_masternode || (Params().IsTestChain() && !sporkman.IsSporkActive(SPORK_24_TEST_EHF))) {
         return;
     }
 
@@ -75,7 +82,7 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
         return;
     }
 
-    const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), m_chainman.ActiveChain(), qman, requestId);
+    const auto quorum = llmq::SelectQuorumForSigning(llmq_params_opt.value(), chainstate.m_chain, qman, requestId);
     if (!quorum) {
         LogPrintf("CEHFSignalsHandler::trySignEHFSignal no quorum for id=%s\n", requestId.ToString());
         return;
@@ -89,7 +96,7 @@ void CEHFSignalsHandler::trySignEHFSignal(int bit, const CBlockIndex* const pind
     sigman.AsyncSignIfMember(llmqType, shareman, requestId, msgHash, quorum->qc->quorumHash, false, true);
 }
 
-MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
+void CEHFSignalsHandler::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
 {
     if (g_txindex) {
         g_txindex->BlockUntilSyncedToCurrentChain();
@@ -97,11 +104,10 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
 
     if (WITH_LOCK(cs, return ids.find(recoveredSig.getId()) == ids.end())) {
         // Do nothing, it's not for this handler
-        return {};
+        return;
     }
 
-    MessageProcessingResult ret;
-    const auto ehfSignals = mnhfman.GetSignalsStage(WITH_LOCK(cs_main, return m_chainman.ActiveTip()));
+    const auto ehfSignals = mnhfman.GetSignalsStage(WITH_LOCK(cs_main, return chainstate.m_chain.Tip()));
     MNHFTxPayload mnhfPayload;
     for (const auto& deployment : Params().GetConsensus().vDeployments) {
         // skip deployments that do not use dip0023 or that have already been mined
@@ -124,15 +130,14 @@ MessageProcessingResult CEHFSignalsHandler::HandleNewRecoveredSig(const CRecover
             CTransactionRef tx_to_sent = MakeTransactionRef(std::move(tx));
             LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig Special EHF TX is created hash=%s\n", tx_to_sent->GetHash().ToString());
             LOCK(cs_main);
-            const MempoolAcceptResult result = m_chainman.ProcessTransaction(tx_to_sent);
+            const MempoolAcceptResult result = AcceptToMemoryPool(chainstate, mempool, tx_to_sent, /* bypass_limits */ false);
             if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
-                ret.m_transactions.push_back(tx_to_sent->GetHash());
+                Assert(m_peerman)->RelayTransaction(tx_to_sent->GetHash());
             } else {
                 LogPrintf("CEHFSignalsHandler::HandleNewRecoveredSig -- AcceptToMemoryPool failed: %s\n", result.m_state.ToString());
             }
         }
         break;
     }
-    return ret;
 }
 } // namespace llmq

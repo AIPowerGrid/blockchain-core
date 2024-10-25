@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -51,10 +51,10 @@ private:
         ssObj << hash;
 
         // open output file, and associate with CAutoFile
-        FILE *file = fsbridge::fopen(pathDB, "wb");
+        FILE *file = fopen(pathDB.string().c_str(), "wb");
         CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
         if (fileout.IsNull())
-            return error("%s: Failed to open file %s", __func__, fs::PathToString(pathDB));
+            return error("%s: Failed to open file %s", __func__, pathDB.string());
 
         // Write and commit header, data
         try {
@@ -77,11 +77,11 @@ private:
 
         int64_t nStart = GetTimeMillis();
         // open input file, and associate with CAutoFile
-        FILE *file = fsbridge::fopen(pathDB, "rb");
+        FILE *file = fopen(pathDB.string().c_str(), "rb");
         CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
         if (filein.IsNull())
         {
-            error("%s: Failed to open file %s", __func__, fs::PathToString(pathDB));
+            error("%s: Failed to open file %s", __func__, pathDB.string());
             return FileError;
         }
 
@@ -117,9 +117,9 @@ private:
         }
 
 
+        unsigned char pchMsgTmp[4];
+        std::string strMagicMessageTmp;
         try {
-            unsigned char pchMsgTmp[4];
-            std::string strMagicMessageTmp;
             // de-serialize file header (file specific magic message) and ..
             ssObj >> strMagicMessageTmp;
 
@@ -178,11 +178,11 @@ private:
     }
 
 public:
-    CFlatDB(std::string&& strFilenameIn, std::string&& strMagicMessageIn) :
-        pathDB{gArgs.GetDataDirNet() / strFilenameIn},
-        strFilename{strFilenameIn},
-        strMagicMessage{strMagicMessageIn}
+    CFlatDB(std::string strFilenameIn, std::string strMagicMessageIn)
     {
+        pathDB = GetDataDir() / strFilenameIn;
+        strFilename = strFilenameIn;
+        strMagicMessage = strMagicMessageIn;
     }
 
     bool Load(T& objToLoad)
@@ -191,7 +191,7 @@ public:
         return Read(objToLoad);
     }
 
-    bool Store(const T& objToSave)
+    bool Store(T& objToSave)
     {
         LogPrintf("Verifying %s format...\n", strFilename);
         T tmpObjToLoad;

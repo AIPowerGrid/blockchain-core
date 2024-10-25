@@ -43,10 +43,7 @@ class TestP2PConn(P2PInterface):
 
 class DIP3V19Test(DashTestFramework):
     def set_test_params(self):
-        self.extra_args = [[
-            '-testactivationheight=v20@1200', # required otherwise mine_quorum("llmq_test [100]") fails
-        ]] * 6
-        self.set_dash_test_params(6, 5, evo_count=2, extra_args=self.extra_args)
+        self.set_dash_test_params(6, 5, fast_dip3_enforcement=True, evo_count=2)
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -55,6 +52,12 @@ class DIP3V19Test(DashTestFramework):
 
         self.test_node = self.nodes[0].add_p2p_connection(TestP2PConn())
         null_hash = format(0, "064x")
+
+        for i in range(len(self.nodes)):
+            if i != 0:
+                self.connect_nodes(i, 0)
+
+        self.activate_dip8()
 
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
@@ -86,7 +89,8 @@ class DIP3V19Test(DashTestFramework):
 
         evo_info_0 = self.dynamically_add_masternode(evo=True, rnd=7)
         assert evo_info_0 is not None
-        self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks())
+        self.nodes[0].generate(8)
+        self.sync_blocks(self.nodes)
 
         self.log.info("Checking that protxs with duplicate EvoNodes fields are rejected")
         evo_info_1 = self.dynamically_add_masternode(evo=True, rnd=7, should_be_rejected=True)
@@ -96,7 +100,8 @@ class DIP3V19Test(DashTestFramework):
         assert evo_info_2 is None
         evo_info_3 = self.dynamically_add_masternode(evo=True, rnd=9)
         assert evo_info_3 is not None
-        self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks())
+        self.nodes[0].generate(8)
+        self.sync_blocks(self.nodes)
         self.dynamically_evo_update_service(evo_info_0, 9, should_be_rejected=True)
 
         revoke_protx = self.mninfo[-1].proTxHash
@@ -124,18 +129,19 @@ class DIP3V19Test(DashTestFramework):
         funds_address = self.nodes[0].getnewaddress()
         fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
         self.wait_for_instantlock(fund_txid, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1)[0]
+        tip = self.nodes[0].generate(1)[0]
         assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
+        self.sync_all(self.nodes)
 
         protx_result = self.nodes[0].protx('revoke', revoke_protx, revoke_keyoperator, 1, funds_address)
         self.wait_for_instantlock(protx_result, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+        tip = self.nodes[0].generate(1)[0]
         assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
         # Revoking a MN results in disconnects. Wait for disconnects to actually happen
         # and then reconnect the corresponding node back to let sync_blocks finish correctly.
         self.wait_until(lambda: self.nodes[node_idx].getconnectioncount() == 0)
         self.connect_nodes(node_idx, 0)
-        self.sync_all()
+        self.sync_all(self.nodes)
         self.log.info(f"Successfully revoked={revoke_protx}")
         for mn in self.mninfo:
             if mn.proTxHash == revoke_protx:

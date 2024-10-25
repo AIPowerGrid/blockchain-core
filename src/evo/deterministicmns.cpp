@@ -5,7 +5,6 @@
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
-#include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
@@ -466,7 +465,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
     if (dmn->pdmnState->addr != CService() && !AddUniqueProperty(*dmn, dmn->pdmnState->addr)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate address=%s", __func__,
-                                           dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringAddrPort())));
+                dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort())));
     }
     if (!AddUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
@@ -507,7 +506,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
     if (!UpdateUniqueProperty(*dmn, oldState->addr, pdmnState->addr)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate address=%s", __func__,
-                                           oldDmn.proTxHash.ToString(), pdmnState->addr.ToStringAddrPort())));
+                oldDmn.proTxHash.ToString(), pdmnState->addr.ToStringIPPort())));
     }
     if (!UpdateUniqueProperty(*dmn, oldState->keyIDOwner, pdmnState->keyIDOwner)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
@@ -567,7 +566,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     if (dmn->pdmnState->addr != CService() && !DeleteUniqueProperty(*dmn, dmn->pdmnState->addr)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a address=%s", __func__,
-                                           proTxHash.ToString(), dmn->pdmnState->addr.ToStringAddrPort())));
+                proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort())));
     }
     if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
@@ -1067,13 +1066,11 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             mnListsCache.emplace(snapshot.GetBlockHash(), snapshot);
         } else {
             // keep snapshots for yet alive quorums
-            if (ranges::any_of(Params().GetConsensus().llmqs,
-                               [&snapshot, this](const auto& params) EXCLUSIVE_LOCKS_REQUIRED(cs) {
-                                   AssertLockHeld(cs);
-                                   return (snapshot.GetHeight() % params.dkgInterval == 0) &&
-                                          (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >=
-                                           tipIndex->nHeight);
-                               })) {
+            if (ranges::any_of(Params().GetConsensus().llmqs, [&snapshot, this](const auto& params){
+                AssertLockHeld(cs);
+                return (snapshot.GetHeight() % params.dkgInterval == 0) &&
+                (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >= tipIndex->nHeight);
+            })) {
                 mnListsCache.emplace(snapshot.GetBlockHash(), snapshot);
             }
         }
@@ -1240,10 +1237,6 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
         auto dbTx = m_evoDb.BeginTransaction();
         m_evoDb.WriteBestBlock(m_chainstate.m_chain.Tip()->GetBlockHash());
         dbTx->Commit();
-        if (!m_evoDb.CommitRootTransaction()) {
-            LogPrintf("CDeterministicMNManager::%s -- failed to commit to evoDB\n", __func__);
-            return false;
-        }
         return true;
     }
 
@@ -1355,10 +1348,6 @@ bool CDeterministicMNManager::MigrateDBIfNeeded2()
         auto dbTx = m_evoDb.BeginTransaction();
         m_evoDb.WriteBestBlock(m_chainstate.m_chain.Tip()->GetBlockHash());
         dbTx->Commit();
-        if (!m_evoDb.CommitRootTransaction()) {
-            LogPrintf("CDeterministicMNManager::%s -- failed to commit to evoDB\n", __func__);
-            return false;
-        }
         return true;
     }
 

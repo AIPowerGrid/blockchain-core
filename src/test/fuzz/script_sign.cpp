@@ -13,7 +13,6 @@
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
-#include <util/translation.h>
 
 #include <cassert>
 #include <cstdint>
@@ -78,7 +77,9 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
     }
 
     FillableSigningProvider provider;
-    CKey k = ConsumePrivateKey(fuzzed_data_provider);
+    CKey k;
+    const std::vector<uint8_t> key_data = ConsumeRandomLengthByteVector(fuzzed_data_provider);
+    k.Set(key_data.begin(), key_data.end(), fuzzed_data_provider.ConsumeBool());
     if (k.IsValid()) {
         provider.AddKey(k);
     }
@@ -133,7 +134,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
                 }
                 coins[*outpoint] = *coin;
             }
-            std::map<int, bilingual_str> input_errors;
+            std::map<int, std::string> input_errors;
             // (void)SignTransaction(sign_transaction_tx_to, &provider, coins, fuzzed_data_provider.ConsumeIntegral<int>(), input_errors);
         }
     }

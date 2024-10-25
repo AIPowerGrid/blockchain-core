@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <evo/evodb.h>
+#include <llmq/blockprocessor.h>
 #include <llmq/chainlocks.h>
 #include <llmq/instantsend.h>
 #include <sync.h>
@@ -12,7 +13,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(validation_flush_tests, ChainTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(validation_flush_tests, BasicTestingSetup)
 
 //! Test utilities for detecting when we need to flush the coins cache based
 //! on estimated memory usage.
@@ -23,8 +24,7 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
 {
     CTxMemPool mempool;
     BlockManager blockman{};
-    CChainState chainstate(&mempool, blockman, *Assert(m_node.chainman), *m_node.evodb, m_node.chain_helper,
-                           llmq::chainLocksHandler, llmq::quorumInstantSendManager);
+    CChainState chainstate(&mempool, blockman, *m_node.evodb, m_node.chain_helper, llmq::chainLocksHandler, llmq::quorumInstantSendManager);
     chainstate.InitCoinsDB(/*cache_size_bytes*/ 1 << 10, /*in_memory*/ true, /*should_wipe*/ false);
     WITH_LOCK(::cs_main, chainstate.InitCoinsCache(1 << 10));
 
@@ -56,12 +56,12 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
         BOOST_TEST_MESSAGE("CCoinsViewCache memory usage: " << view.DynamicMemoryUsage());
     };
 
-    // PoolResource defaults to 256 KiB that will be allocated, so we'll take that and make it a bit larger.
-    constexpr size_t MAX_COINS_CACHE_BYTES = 262144 + 512;
+    constexpr size_t MAX_COINS_CACHE_BYTES = 1024;
 
     // Without any coins in the cache, we shouldn't need to flush.
-    BOOST_TEST(
-        chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes=*/ 0) != CoinsCacheSizeState::CRITICAL);
+    BOOST_CHECK_EQUAL(
+        chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 0),
+        CoinsCacheSizeState::OK);
 
     // If the initial memory allocations of cacheCoins don't match these common
     // cases, we can't really continue to make assertions about memory usage.
@@ -91,21 +91,13 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
     // cacheCoins (unordered_map) preallocates.
     constexpr int COINS_UNTIL_CRITICAL{3};
 
-    // no coin added, so we have plenty of space left.
-    BOOST_CHECK_EQUAL(
-        chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 0),
-        CoinsCacheSizeState::OK);
-
     for (int i{0}; i < COINS_UNTIL_CRITICAL; ++i) {
         COutPoint res = add_coin(view);
         print_view_mem_usage(view);
         BOOST_CHECK_EQUAL(view.AccessCoin(res).DynamicMemoryUsage(), COIN_SIZE);
-
-        // adding first coin causes the MemoryResource to allocate one 256 KiB chunk of memory,
-        // pushing us immediately over to LARGE
         BOOST_CHECK_EQUAL(
-            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes=*/ 0),
-            CoinsCacheSizeState::LARGE);
+            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 0),
+            CoinsCacheSizeState::OK);
     }
 
     // Adding some additional coins will push us over the edge to CRITICAL.
@@ -122,16 +114,16 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
         chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 0),
         CoinsCacheSizeState::CRITICAL);
 
-    // Passing non-zero max mempool usage (512 KiB) should allow us more headroom.
+    // Passing non-zero max mempool usage should allow us more headroom.
     BOOST_CHECK_EQUAL(
-        chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes=*/ 1 << 19),
+        chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 1 << 10),
         CoinsCacheSizeState::OK);
 
     for (int i{0}; i < 3; ++i) {
         add_coin(view);
         print_view_mem_usage(view);
         BOOST_CHECK_EQUAL(
-            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes=*/ 1 << 19),
+            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 1 << 10),
             CoinsCacheSizeState::OK);
     }
 
@@ -147,7 +139,7 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
         BOOST_CHECK(usage_percentage >= 0.9);
         BOOST_CHECK(usage_percentage < 1);
         BOOST_CHECK_EQUAL(
-            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, /*max_mempool_size_bytes*/ 1 << 10), // 1024
+            chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, 1 << 10),
             CoinsCacheSizeState::LARGE);
     }
 
@@ -159,7 +151,8 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
             CoinsCacheSizeState::OK);
     }
 
-    // Flushing the view does take us back to OK because ReallocateCache() is called
+    // Flushing the view doesn't take us back to OK because cacheCoins has
+    // preallocated memory that doesn't get reclaimed even after flush.
 
     BOOST_CHECK_EQUAL(
         chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, 0),
@@ -171,7 +164,7 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
 
     BOOST_CHECK_EQUAL(
         chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, 0),
-        CoinsCacheSizeState::OK);
+        CoinsCacheSizeState::CRITICAL);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -26,7 +26,6 @@
 #endif
 
 #include <QDebug>
-#include <QLatin1Char>
 #include <QSettings>
 #include <QStringList>
 
@@ -222,11 +221,6 @@ void OptionsModel::Init(bool resetSettings)
     if (!gArgs.SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
 
-    if (!settings.contains("SubFeeFromAmount")) {
-        settings.setValue("SubFeeFromAmount", false);
-    }
-    m_sub_fee_from_amount = settings.value("SubFeeFromAmount", false).toBool();
-
     // CoinJoin
     if (!settings.contains("nCoinJoinSessions"))
         settings.setValue("nCoinJoinSessions", DEFAULT_COINJOIN_SESSIONS);
@@ -238,8 +232,13 @@ void OptionsModel::Init(bool resetSettings)
     if (!gArgs.SoftSetArg("-coinjoinrounds", settings.value("nCoinJoinRounds").toString().toStdString()))
         addOverriddenOption("-coinjoinrounds");
 
-    if (!settings.contains("nCoinJoinAmount"))
-        settings.setValue("nCoinJoinAmount", DEFAULT_COINJOIN_AMOUNT);
+    if (!settings.contains("nCoinJoinAmount")) {
+        // for migration from old settings
+        if (!settings.contains("nAnonymizeDashAmount"))
+            settings.setValue("nCoinJoinAmount", DEFAULT_COINJOIN_AMOUNT);
+        else
+            settings.setValue("nCoinJoinAmount", settings.value("nAnonymizeDashAmount").toInt());
+    }
     if (!gArgs.SoftSetArg("-coinjoinamount", settings.value("nCoinJoinAmount").toString().toStdString()))
         addOverriddenOption("-coinjoinamount");
 
@@ -333,7 +332,7 @@ void OptionsModel::Reset()
     QSettings settings;
 
     // Backup old settings to chain-specific datadir for troubleshooting
-    BackupSettings(gArgs.GetDataDirNet() / "guisettings.ini.bak", settings);
+    BackupSettings(GetDataDir(true) / "guisettings.ini.bak", settings);
 
     // Save the strDataDir setting
     QString dataDir = GUIUtil::getDefaultDataDirectory();
@@ -382,7 +381,7 @@ static ProxySetting GetProxySetting(QSettings &settings, const QString &name)
 
 static void SetProxySetting(QSettings &settings, const QString &name, const ProxySetting &ip_port)
 {
-    settings.setValue(name, QString{ip_port.ip + QLatin1Char(':') + ip_port.port});
+    settings.setValue(name, ip_port.ip + ":" + ip_port.port);
 }
 
 static const QString GetDefaultProxyAddress()
@@ -463,8 +462,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
 #ifdef ENABLE_WALLET
         case SpendZeroConfChange:
             return settings.value("bSpendZeroConfChange");
-        case SubFeeFromAmount:
-            return m_sub_fee_from_amount;
         case ShowMasternodesTab:
             return settings.value("fShowMasternodesTab");
         case ShowGovernanceTab:
@@ -639,10 +636,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
                 settings.setValue("fShowMasternodesTab", value);
                 setRestartRequired(true);
             }
-            break;
-        case SubFeeFromAmount:
-            m_sub_fee_from_amount = value.toBool();
-            settings.setValue("SubFeeFromAmount", m_sub_fee_from_amount);
             break;
         case ShowGovernanceTab:
             if (settings.value("fShowGovernanceTab") != value) {

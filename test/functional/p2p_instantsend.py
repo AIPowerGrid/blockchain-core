@@ -14,7 +14,7 @@ Tests InstantSend functionality (prevent doublespend for unconfirmed transaction
 
 class InstantSendTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(8, 4)
+        self.set_dash_test_params(8, 4, fast_dip3_enforcement=True)
         # set sender,  receiver,  isolated nodes
         self.isolated_idx = 1
         self.receiver_idx = 2
@@ -47,7 +47,8 @@ class InstantSendTest(DashTestFramework):
         for node in self.nodes:
             self.wait_for_instantlock(is_id, node)
         self.bump_mocktime(1)
-        self.generate(self.nodes[0], 2)
+        self.nodes[0].generate(2)
+        self.sync_all()
 
         # create doublespending transaction, but don't relay it
         dblspnd_tx = self.create_raw_tx(sender, isolated, 0.5, 1, 100)
@@ -66,11 +67,11 @@ class InstantSendTest(DashTestFramework):
         dblspnd_txid = isolated.sendrawtransaction(dblspnd_tx['hex'])
         # generate block on isolated node with doublespend transaction
         self.bump_mocktime(599)
-        wrong_early_block = self.generate(isolated, 1, sync_fun=self.no_op)[0]
+        wrong_early_block = isolated.generate(1)[0]
         assert not "confirmation" in isolated.getrawtransaction(dblspnd_txid, 1)
         isolated.invalidateblock(wrong_early_block)
         self.bump_mocktime(1)
-        wrong_block = self.generate(isolated, 1, sync_fun=self.no_op)[0]
+        wrong_block = isolated.generate(1)[0]
         assert_equal(isolated.getrawtransaction(dblspnd_txid, 1)["confirmations"], 1)
         # connect isolated block to network
         self.reconnect_isolated_node(self.isolated_idx, 0)
@@ -91,7 +92,8 @@ class InstantSendTest(DashTestFramework):
         self.bump_mocktime(1)
         # make sure the above TX is on node0
         self.sync_mempools([n for n in self.nodes if n is not isolated])
-        self.generate(self.nodes[0], 2)
+        self.nodes[0].generate(2)
+        self.sync_all()
 
     def test_mempool_doublespend(self):
         sender = self.nodes[self.sender_idx]
@@ -106,7 +108,8 @@ class InstantSendTest(DashTestFramework):
         for node in self.nodes:
             self.wait_for_instantlock(is_id, node)
         self.bump_mocktime(1)
-        self.generate(self.nodes[0], 2)
+        self.nodes[0].generate(2)
+        self.sync_all()
 
         # create doublespending transaction, but don't relay it
         dblspnd_tx = self.create_raw_tx(sender, isolated, 0.5, 1, 100)
@@ -138,7 +141,8 @@ class InstantSendTest(DashTestFramework):
         assert_equal(receiver.getwalletinfo()["balance"], 0)
         # mine more blocks
         self.bump_mocktime(1)
-        self.generate(self.nodes[0], 2)
+        self.nodes[0].generate(2)
+        self.sync_all()
 
 if __name__ == '__main__':
     InstantSendTest().main()

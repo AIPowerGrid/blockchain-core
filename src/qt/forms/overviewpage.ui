@@ -37,23 +37,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,1,0,1">
-     <item>
-      <spacer name="horizontalSpacerLeft">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Preferred</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>10</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
@@ -577,19 +561,6 @@
       </layout>
      </item>
      <item>
-      <spacer name="horizontalSpacerCenter">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>10</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <widget class="QFrame" name="frame_2">
@@ -638,7 +609,7 @@
            </layout>
           </item>
           <item>
-           <widget class="TransactionOverviewWidget" name="listTransactions">
+           <widget class="QListView" name="listTransactions">
             <property name="frameShape">
              <enum>QFrame::NoFrame</enum>
             </property>
@@ -648,14 +619,8 @@
             <property name="horizontalScrollBarPolicy">
              <enum>Qt::ScrollBarAlwaysOff</enum>
             </property>
-            <property name="sizeAdjustPolicy">
-             <enum>QAbstractScrollArea::AdjustToContents</enum>
-            </property>
             <property name="selectionMode">
              <enum>QAbstractItemView::NoSelection</enum>
-            </property>
-            <property name="uniformItemSizes">
-             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -664,33 +629,10 @@
        </item>
       </layout>
      </item>
-     <item>
-      <spacer name="horizontalSpacerRight">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Preferred</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>10</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
     </layout>
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>TransactionOverviewWidget</class>
-   <extends>QListView</extends>
-   <header>qt/transactionoverviewwidget.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

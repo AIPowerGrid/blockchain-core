@@ -40,6 +40,8 @@ const std::vector<std::pair<std::string, FeeEstimateMode>>& FeeModeMap()
         {"unset", FeeEstimateMode::UNSET},
         {"economical", FeeEstimateMode::ECONOMICAL},
         {"conservative", FeeEstimateMode::CONSERVATIVE},
+        {(CURRENCY_UNIT + "/kB"), FeeEstimateMode::DASH_KB},
+        {(CURRENCY_ATOM + "/B"), FeeEstimateMode::DUFF_B},
     };
     return FEE_MODES;
 }
@@ -47,11 +49,6 @@ const std::vector<std::pair<std::string, FeeEstimateMode>>& FeeModeMap()
 std::string FeeModes(const std::string& delimiter)
 {
     return Join(FeeModeMap(), delimiter, [&](const std::pair<std::string, FeeEstimateMode>& i) { return i.first; });
-}
-
-const std::string InvalidEstimateModeErrorMessage()
-{
-    return "Invalid estimate_mode parameter, must be one of: \"" + FeeModes("\", \"") + "\"";
 }
 
 bool FeeModeFromString(const std::string& mode_string, FeeEstimateMode& fee_estimate_mode)

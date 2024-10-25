@@ -7,6 +7,8 @@
 # Test addressindex generation and fetching
 #
 
+import binascii
+
 from test_framework.messages import COIN, COutPoint, CTransaction, CTxIn, CTxOut
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
@@ -38,20 +40,22 @@ class AddressIndexTest(BitcoinTestFramework):
         self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
-        self.log.info("Test that settings can be disabled without -reindex...")
-        self.restart_node(1, ["-addressindex=0"])
+        self.log.info("Test that settings can't be changed without -reindex...")
+        self.stop_node(1)
+        self.nodes[1].assert_start_raises_init_error(["-addressindex=0"], "You need to rebuild the database using -reindex to change -addressindex", match=ErrorMatch.PARTIAL_REGEX)
+        self.start_node(1, ["-addressindex=0", "-reindex"])
         self.connect_nodes(0, 1)
         self.sync_all()
-        self.log.info("Test that settings can't be enabled without -reindex...")
         self.stop_node(1)
-        self.nodes[1].assert_start_raises_init_error(["-addressindex"], "You need to rebuild the database using -reindex to enable -addressindex", match=ErrorMatch.PARTIAL_REGEX)
+        self.nodes[1].assert_start_raises_init_error(["-addressindex"], "You need to rebuild the database using -reindex to change -addressindex", match=ErrorMatch.PARTIAL_REGEX)
         self.start_node(1, ["-addressindex", "-reindex"])
         self.connect_nodes(0, 1)
         self.sync_all()
 
         self.log.info("Mining blocks...")
         mining_address = self.nodes[0].getnewaddress()
-        self.generatetoaddress(self.nodes[0], 105, mining_address)
+        self.nodes[0].generatetoaddress(105, mining_address)
+        self.sync_all()
 
         chain_height = self.nodes[1].getblockcount()
         assert_equal(chain_height, 105)
@@ -70,22 +74,24 @@ class AddressIndexTest(BitcoinTestFramework):
         self.log.info("Testing p2pkh and p2sh address index...")
 
         txid0 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 10)
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
 
         txidb0 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 10)
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
 
         txid1 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 15)
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
 
         txidb1 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 15)
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
 
         txid2 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 20)
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
 
         txidb2 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 20)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+
+        self.sync_all()
 
         txids = self.nodes[1].getaddresstxids("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4")
         assert_equal(len(txids), 3)
@@ -126,7 +132,7 @@ class AddressIndexTest(BitcoinTestFramework):
 
         # Check that outputs with the same address will only return one txid
         self.log.info("Testing for txid uniqueness...")
-        addressHash = bytes.fromhex("FE30B718DCF0BF8A2A686BF1820C073F8B2C3B37")
+        addressHash = binascii.unhexlify("FE30B718DCF0BF8A2A686BF1820C073F8B2C3B37")
         scriptPubKey = CScript([OP_HASH160, addressHash, OP_EQUAL])
         unspent = self.nodes[0].listunspent()
         tx = CTransaction()
@@ -137,7 +143,8 @@ class AddressIndexTest(BitcoinTestFramework):
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
         sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
 
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
         txidsmany = self.nodes[1].getaddresstxids("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
         assert_equal(len(txidsmany), 4)
@@ -152,7 +159,7 @@ class AddressIndexTest(BitcoinTestFramework):
         self.log.info("Testing balances after spending...")
         privkey2 = "cU4zhap7nPJAWeMFu4j6jLrfPmqakDAzy8zn8Fhb3oEevdm4e5Lc"
         address2 = "yeMpGzMj3rhtnz48XsfpB8itPHhHtgxLc3"
-        addressHash2 = bytes.fromhex("C5E4FB9171C22409809A3E8047A29C83886E325D")
+        addressHash2 = binascii.unhexlify("C5E4FB9171C22409809A3E8047A29C83886E325D")
         scriptPubKey2 = CScript([OP_DUP, OP_HASH160, addressHash2, OP_EQUALVERIFY, OP_CHECKSIG])
         self.nodes[0].importprivkey(privkey2)
 
@@ -165,7 +172,8 @@ class AddressIndexTest(BitcoinTestFramework):
         tx.rehash()
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
         spending_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+        self.sync_all()
         balance1 = self.nodes[1].getaddressbalance(address2)
         assert_equal(balance1["balance"], amount)
 
@@ -178,7 +186,8 @@ class AddressIndexTest(BitcoinTestFramework):
 
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
         sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
         balance2 = self.nodes[1].getaddressbalance(address2)
         assert_equal(balance2["balance"], change_amount)
@@ -226,12 +235,13 @@ class AddressIndexTest(BitcoinTestFramework):
         assert_equal(utxos2[0]["satoshis"], amount)
 
         # Check sorting of utxos
-        self.generate(self.nodes[2], 150, sync_fun=self.no_op)
+        self.nodes[2].generate(150)
 
         self.nodes[2].sendtoaddress(address2, 50)
-        self.generate(self.nodes[2], 1, sync_fun=self.no_op)
+        self.nodes[2].generate(1)
         self.nodes[2].sendtoaddress(address2, 50)
-        self.generate(self.nodes[2], 1)
+        self.nodes[2].generate(1)
+        self.sync_all()
 
         utxos3 = self.nodes[1].getaddressutxos({"addresses": [address2]})
         assert_equal(len(utxos3), 3)
@@ -244,7 +254,7 @@ class AddressIndexTest(BitcoinTestFramework):
 
         privKey3 = "cRyrMvvqi1dmpiCmjmmATqjAwo6Wu7QTjKu1ABMYW5aFG4VXW99K"
         address3 = "yWB15aAdpeKuSaQHFVJpBDPbNSLZJSnDLA"
-        addressHash3 = bytes.fromhex("6C186B3A308A77C779A9BB71C3B5A7EC28232A13")
+        addressHash3 = binascii.unhexlify("6C186B3A308A77C779A9BB71C3B5A7EC28232A13")
         scriptPubKey3 = CScript([OP_DUP, OP_HASH160, addressHash3, OP_EQUALVERIFY, OP_CHECKSIG])
         # address4 = "2N8oFVB2vThAKury4vnLquW2zVjsYjjAkYQ"
         scriptPubKey4 = CScript([OP_HASH160, addressHash3, OP_EQUAL])
@@ -283,7 +293,8 @@ class AddressIndexTest(BitcoinTestFramework):
         assert_equal(mempool[2]["txid"], memtxid2)
         assert_equal(mempool[2]["index"], 1)
 
-        self.generate(self.nodes[2], 1)
+        self.nodes[2].generate(1)
+        self.sync_all()
         mempool2 = self.nodes[2].getaddressmempool({"addresses": [address3]})
         assert_equal(len(mempool2), 0)
 
@@ -309,11 +320,12 @@ class AddressIndexTest(BitcoinTestFramework):
         # sending and receiving to the same address
         privkey1 = "cMvZn1pVWntTEcsK36ZteGQXRAcZ8CoTbMXF1QasxBLdnTwyVQCc"
         address1 = "yM9Eed1bxjy7tYxD3yZDHxjcVT48WdRoB1"
-        address1hash = bytes.fromhex("0909C84A817651502E020AAD0FBCAE5F656E7D8A")
+        address1hash = binascii.unhexlify("0909C84A817651502E020AAD0FBCAE5F656E7D8A")
         address1script = CScript([OP_DUP, OP_HASH160, address1hash, OP_EQUALVERIFY, OP_CHECKSIG])
 
         self.nodes[0].sendtoaddress(address1, 10)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
+        self.sync_all()
 
         utxos = self.nodes[1].getaddressutxos({"addresses": [address1]})
         assert_equal(len(utxos), 1)

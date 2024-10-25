@@ -156,7 +156,7 @@ Intro::Intro(QWidget *parent, int64_t blockchain_size_gb, int64_t chain_state_si
         UpdatePruneLabels(prune_checked);
         UpdateFreeSpaceLabel();
     });
-    connect(ui->pruneGB, qOverload<int>(&QSpinBox::valueChanged), [this](int prune_GB) {
+    connect(ui->pruneGB, QOverload<int>::of(&QSpinBox::valueChanged), [this](int prune_GB) {
         m_prune_target_gb = prune_GB;
         UpdatePruneLabels(ui->prune->isChecked());
         UpdateFreeSpaceLabel();
@@ -269,7 +269,7 @@ bool Intro::showIfNeeded(bool& did_show_intro, int64_t& prune_MiB)
      * (to be consistent with dashd behavior)
      */
     if(dataDir != GUIUtil::getDefaultDataDirectory()) {
-        gArgs.SoftSetArg("-datadir", fs::PathToString(GUIUtil::QStringToPath(dataDir))); // use OS locale for path setting
+        gArgs.SoftSetArg("-datadir", GUIUtil::QStringToPath(dataDir).string()); // use OS locale for path setting
     }
     return true;
 }

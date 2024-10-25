@@ -5,7 +5,9 @@
 #ifndef BITCOIN_INDEX_TXINDEX_H
 #define BITCOIN_INDEX_TXINDEX_H
 
+#include <chain.h>
 #include <index/base.h>
+#include <txdb.h>
 
 /**
  * TxIndex is used to look up transactions included in the blockchain by hash.
@@ -20,9 +22,10 @@ protected:
 private:
     const std::unique_ptr<DB> m_db;
 
-    bool AllowPrune() const override { return false; }
-
 protected:
+    /// Override base class init to migrate from old database.
+    bool Init() override;
+
     bool WriteBlock(const CBlock& block, const CBlockIndex* pindex) override;
 
     BaseIndex::DB& GetDB() const override;

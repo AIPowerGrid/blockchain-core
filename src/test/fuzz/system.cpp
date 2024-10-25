@@ -5,7 +5,6 @@
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
-#include <test/util/setup_common.h>
 #include <util/system.h>
 
 #include <cstdint>
@@ -13,11 +12,6 @@
 #include <vector>
 
 namespace {
-void initialize_system()
-{
-    static const auto testing_setup = MakeNoLogFileContext<>();
-}
-
 std::string GetArgumentName(const std::string& name)
 {
     size_t idx = name.find('=');
@@ -26,8 +20,9 @@ std::string GetArgumentName(const std::string& name)
     }
     return name.substr(0, idx);
 }
+} // namespace
 
-FUZZ_TARGET_INIT(system, initialize_system)
+FUZZ_TARGET(system)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
     ArgsManager args_manager{};
@@ -119,4 +114,3 @@ FUZZ_TARGET_INIT(system, initialize_system)
 
     (void)HelpRequested(args_manager);
 }
-} // namespace

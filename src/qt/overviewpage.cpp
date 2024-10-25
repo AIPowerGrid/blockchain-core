@@ -11,7 +11,6 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/transactionfilterproxy.h>
-#include <qt/transactionoverviewwidget.h>
 #include <qt/transactiontablemodel.h>
 #include <qt/utilitydialog.h>
 #include <qt/walletmodel.h>
@@ -19,8 +18,6 @@
 #include <coinjoin/options.h>
 #include <interfaces/coinjoin.h>
 
-#include <algorithm>
-#include <map>
 #include <cmath>
 
 #include <QAbstractItemDelegate>
@@ -45,7 +42,7 @@ public:
     explicit TxViewDelegate(QObject* parent = nullptr) :
         QAbstractItemDelegate(), unit(BitcoinUnits::DASH)
     {
-        connect(this, &TxViewDelegate::width_changed, this, &TxViewDelegate::sizeHintChanged);
+
     }
 
     inline void paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -86,8 +83,7 @@ public:
         qint64 nAmount = index.data(TransactionTableModel::AmountRole).toLongLong();
         QString strAmount = BitcoinUnits::floorWithUnit(unit, nAmount, true, BitcoinUnits::SeparatorStyle::ALWAYS);
         painter->setPen(colorForeground);
-        QRect amount_bounding_rect;
-        painter->drawText(rectTopHalf, Qt::AlignRight | Qt::AlignVCenter, strAmount, &amount_bounding_rect);
+        painter->drawText(rectTopHalf, Qt::AlignRight | Qt::AlignVCenter, strAmount);
 
         // Draw second line (with the initial font)
         // Content: Address/label, Optional Watchonly indicator
@@ -95,47 +91,27 @@ public:
         // Address/Label
         colorForeground = qvariant_cast<QColor>(indexAddress.data(Qt::ForegroundRole));
         QString address = indexAddress.data(Qt::DisplayRole).toString();
-
+        painter->setPen(colorForeground);
+        painter->drawText(rectBottomHalf, Qt::AlignLeft | Qt::AlignVCenter, address, &rectBounding);
         // Optional Watchonly indicator
-        QRect addressRect{rectBottomHalf};
         if (index.data(TransactionTableModel::WatchonlyRole).toBool())
         {
             QIcon iconWatchonly = qvariant_cast<QIcon>(index.data(TransactionTableModel::WatchonlyDecorationRole));
-            QRect watchonlyRect(rectBottomHalf.left(), rectBottomHalf.top(), rectBottomHalf.height(), halfheight);
-            iconWatchonly.paint(painter, watchonlyRect);
-            addressRect.setLeft(addressRect.left() + watchonlyRect.width() + 5);
+            QRect rectWatchonly(rectBounding.right() + 5, rectBottomHalf.top(), 16, halfheight);
+            iconWatchonly.paint(painter, rectWatchonly);
         }
 
-        painter->setPen(colorForeground);
-        painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter, address, &rectBounding);
-        int address_rect_min_width = rectBounding.width();
-
-        const int minimum_width = std::max(address_rect_min_width, amount_bounding_rect.width() /*+ date_bounding_rect.width() */);
-        const auto search = m_minimum_width.find(index.row());
-        if (search == m_minimum_width.end() || search->second != minimum_width) {
-            m_minimum_width[index.row()] = minimum_width;
-            Q_EMIT width_changed(index);
-        }
         painter->restore();
     }
 
     inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        const auto search = m_minimum_width.find(index.row());
-        const int minimum_text_width = search == m_minimum_width.end() ? 0 : search->second;
-        return {ITEM_HEIGHT + 8 + minimum_text_width, ITEM_HEIGHT};
+        return QSize(ITEM_HEIGHT, ITEM_HEIGHT);
     }
 
     int unit;
 
-Q_SIGNALS:
-    //! An intermediate signal for emitting from the `paint() const` member function.
-    void width_changed(const QModelIndex& index) const;
-
-private:
-    mutable std::map<int, int> m_minimum_width;
 };
-
 #include <qt/overviewpage.moc>
 
 OverviewPage::OverviewPage(QWidget* parent) :
@@ -175,7 +151,7 @@ OverviewPage::OverviewPage(QWidget* parent) :
     // Note: minimum height of listTransactions will be set later in updateAdvancedCJUI() to reflect actual settings
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
-    connect(ui->listTransactions, &TransactionOverviewWidget::clicked, this, &OverviewPage::handleTransactionClicked);
+    connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
 
     // init "out of sync" warning labels
     ui->labelWalletStatus->setText("(" + tr("out of sync") + ")");
@@ -201,6 +177,11 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 {
     if(filter)
         Q_EMIT transactionClicked(filter->mapToSource(index));
+}
+
+void OverviewPage::handleOutOfSyncWarningClicks()
+{
+    Q_EMIT outOfSyncWarningClicked();
 }
 
 void OverviewPage::setPrivacy(bool privacy)
@@ -468,7 +449,7 @@ void OverviewPage::updateCoinJoinProgress()
 
     ui->coinJoinProgress->setValue(progress);
 
-    QString strToolPip = QString("<b>" + tr("Overall progress") + ": %1%</b><br/>" +
+    QString strToolPip = ("<b>" + tr("Overall progress") + ": %1%</b><br/>" +
                           tr("Denominated") + ": %2%<br/>" +
                           tr("Partially mixed") + ": %3%<br/>" +
                           tr("Mixed") + ": %4%<br/>" +

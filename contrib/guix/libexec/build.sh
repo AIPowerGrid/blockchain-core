@@ -5,7 +5,7 @@ export TZ=UTC
 
 # Although Guix _does_ set umask when building its own packages (in our case,
 # this is all packages in manifest.scm), it does not set it for `guix
-# shell`. It does make sense for at least `guix shell --container`
+# environment`. It does make sense for at least `guix environment --container`
 # to set umask, so if that change gets merged upstream and we bump the
 # time-machine to a commit which includes the aforementioned change, we can
 # remove this line.
@@ -236,6 +236,7 @@ mkdir -p "$OUTDIR"
 # CONFIGFLAGS
 CONFIGFLAGS+=" --enable-reduce-exports --disable-bench --disable-gui-tests --disable-fuzz-binary"
 case "$HOST" in
+    *linux*) CONFIGFLAGS+=" --disable-threadlocal" ;;
     *mingw*) CONFIGFLAGS+=" --disable-miner" ;;
 esac
 
@@ -323,9 +324,11 @@ mkdir -p "$DISTSRC"
 
     case "$HOST" in
         *darwin*)
+            make osx_volname ${V:+V=1}
             make deploydir ${V:+V=1}
             mkdir -p "unsigned-app-${HOST}"
             cp  --target-directory="unsigned-app-${HOST}" \
+                osx_volname \
                 contrib/macdeploy/detached-sig-create.sh \
                 "${BASEPREFIX}/${HOST}"/native/bin/dmg
             mv --target-directory="unsigned-app-${HOST}" dist

@@ -16,7 +16,6 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QMap>
-#include <QMenu>
 #include <QPoint>
 #include <QPushButton>
 #include <QSystemTrayIcon>
@@ -52,6 +51,7 @@ class QAction;
 class QButtonGroup;
 class QComboBox;
 class QDateTime;
+class QMenu;
 class QProgressBar;
 class QProgressDialog;
 class QToolButton;
@@ -190,8 +190,6 @@ private:
     ModalOverlay* modalOverlay = nullptr;
     QButtonGroup* tabGroup = nullptr;
 
-    QMenu* m_network_context_menu = new QMenu(this);
-
 #ifdef Q_OS_MAC
     CAppNapInhibitor* m_app_nap_inhibitor = nullptr;
 #endif
@@ -266,7 +264,7 @@ public Q_SLOTS:
     /** Set number of connections shown in the UI */
     void setNumConnections(int count);
     /** Set network state shown in the UI */
-    void setNetworkActive(bool network_active);
+    void setNetworkActive(bool networkActive);
     /** Get restart command-line parameters and request restart */
     void handleRestart(QStringList args);
     /** Set number of blocks and last block date shown in the UI */

@@ -88,18 +88,18 @@ bool NetWhitebindPermissions::TryParse(const std::string& str, NetWhitebindPermi
     if (!TryParsePermissionFlags(str, flags, offset, error)) return false;
 
     const std::string strBind = str.substr(offset);
-    const std::optional<CService> addrBind{Lookup(strBind, 0, false)};
-    if (!addrBind.has_value()) {
+    CService addrBind;
+    if (!Lookup(strBind, addrBind, 0, false)) {
         error = ResolveErrMsg("whitebind", strBind);
         return false;
     }
-    if (addrBind.value().GetPort() == 0) {
+    if (addrBind.GetPort() == 0) {
         error = strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind);
         return false;
     }
 
     output.m_flags = flags;
-    output.m_service = addrBind.value();
+    output.m_service = addrBind;
     error = Untranslated("");
     return true;
 }

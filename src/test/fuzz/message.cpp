@@ -27,7 +27,9 @@ FUZZ_TARGET_INIT(message, initialize_message)
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
     const std::string random_message = fuzzed_data_provider.ConsumeRandomLengthString(1024);
     {
-        CKey private_key = ConsumePrivateKey(fuzzed_data_provider);
+        const std::vector<uint8_t> random_bytes = ConsumeRandomLengthByteVector(fuzzed_data_provider);
+        CKey private_key;
+        private_key.Set(random_bytes.begin(), random_bytes.end(), fuzzed_data_provider.ConsumeBool());
         std::string signature;
         const bool message_signed = MessageSign(private_key, random_message, signature);
         if (private_key.IsValid()) {

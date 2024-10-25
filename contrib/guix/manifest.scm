@@ -590,7 +590,6 @@ parse, modify and abstract ELF, PE and MachO formats.")
         zlib
         (list zlib "static")
         ;; Build tools
-        cmake-minimal
         gnu-make
         libtool-2.4.7
         autoconf-2.71
@@ -616,5 +615,5 @@ parse, modify and abstract ELF, PE and MachO formats.")
           ((string-contains target "-linux-")
            (list (make-bitcoin-cross-toolchain target)))
           ((string-contains target "darwin")
-           (list clang-toolchain-10 binutils xorriso python-signapple))
+           (list clang-toolchain-10 binutils cmake-minimal xorriso python-signapple))
           (else '())))))

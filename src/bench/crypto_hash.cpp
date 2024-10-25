@@ -13,7 +13,6 @@
 #include <crypto/sha512.h>
 #include <crypto/siphash.h>
 #include <hash.h>
-#include <hash_x11.h>
 #include <random.h>
 #include <uint256.h>
 
@@ -250,9 +249,9 @@ static void MuHash(benchmark::Bench& bench)
 {
     MuHash3072 acc;
     unsigned char key[32] = {0};
-    uint32_t i = 0;
+    int i = 0;
     bench.run([&] {
-        key[0] = ++i & 0xFF;
+        key[0] = ++i;
         acc *= MuHash3072(key);
     });
 }
@@ -273,6 +272,10 @@ static void MuHashDiv(benchmark::Bench& bench)
     MuHash3072 acc;
     FastRandomContext rng(true);
     MuHash3072 muhash{rng.randbytes(32)};
+
+    for (size_t i = 0; i < bench.epochIterations(); ++i) {
+        acc *= muhash;
+    }
 
     bench.run([&] {
         acc /= muhash;

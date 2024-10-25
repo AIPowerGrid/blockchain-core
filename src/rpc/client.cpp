@@ -44,8 +44,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendtoaddress", 6, "use_cj" },
     { "sendtoaddress", 7, "conf_target" },
     { "sendtoaddress", 9, "avoid_reuse" },
-    { "sendtoaddress", 10, "fee_rate"},
-    { "sendtoaddress", 11, "verbose"},
+    { "sendtoaddress", 10, "verbose"},
     { "settxfee", 0, "amount" },
     { "sethdseed", 0, "newkeypool" },
     { "getreceivedbyaddress", 1, "minconf" },
@@ -92,8 +91,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendmany", 6, "use_is" },
     { "sendmany", 7, "use_cj" },
     { "sendmany", 8, "conf_target" },
-    { "sendmany", 10, "fee_rate" },
-    { "sendmany", 11, "verbose" },
+    { "sendmany", 10, "verbose" },
     { "deriveaddresses", 1, "range" },
     { "scantxoutset", 1, "scanobjects" },
     { "addmultisigaddress", 0, "nrequired" },
@@ -154,8 +152,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "lockunspent", 1, "transactions" },
     { "send", 0, "outputs" },
     { "send", 1, "conf_target" },
-    { "send", 3, "fee_rate"},
-    { "send", 4, "options" },
+    { "send", 3, "options" },
     { "importprivkey", 2, "rescan" },
     { "importelectrumwallet", 1, "index" },
     { "importaddress", 2, "rescan" },
@@ -164,7 +161,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "importmulti", 0, "requests" },
     { "importmulti", 1, "options" },
     { "importdescriptors", 0, "requests" },
-    { "listdescriptors", 0, "private" },
     { "verifychain", 0, "checklevel" },
     { "verifychain", 1, "nblocks" },
     { "getblockstats", 0, "hash_or_height" },
@@ -172,14 +168,12 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "pruneblockchain", 0, "height" },
     { "keypoolrefill", 0, "newsize" },
     { "getrawmempool", 0, "verbose" },
-    { "getrawmempool", 1, "mempool_sequence" },
     { "estimatesmartfee", 0, "conf_target" },
     { "estimaterawfee", 0, "conf_target" },
     { "estimaterawfee", 1, "threshold" },
     { "prioritisetransaction", 1, "fee_delta" },
     { "setban", 2, "bantime" },
     { "setban", 3, "absolute" },
-    { "setmnthreadactive", 0, "state" },
     { "setnetworkactive", 0, "state" },
     { "setcoinjoinrounds", 0, "rounds" },
     { "setcoinjoinamount", 0, "amount" },
@@ -230,15 +224,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "upgradetohd", 3, "rescan"},
     { "getnodeaddresses", 0, "count"},
     { "addpeeraddress", 1, "port"},
-    { "addpeeraddress", 2, "tried"},
-    { "sendmsgtopeer", 0, "peer_id" },
     { "stop", 0, "wait" },
-    { "addnode", 2, "v2transport" },
-    { "addconnection", 2, "v2transport" },
-    { "verifychainlock", 2, "blockHeight" },
-    { "verifyislock", 3, "maxHeight" },
-    { "submitchainlock", 2, "blockHeight" },
-    { "mnauth", 0, "nodeId" },
 };
 // clang-format on
 
@@ -261,9 +247,14 @@ public:
 
 CRPCConvertTable::CRPCConvertTable()
 {
-    for (const auto& cp : vRPCConvertParams) {
-        members.emplace(cp.methodName, cp.paramIdx);
-        membersByName.emplace(cp.methodName, cp.paramName);
+    const unsigned int n_elem =
+        (sizeof(vRPCConvertParams) / sizeof(vRPCConvertParams[0]));
+
+    for (unsigned int i = 0; i < n_elem; i++) {
+        members.insert(std::make_pair(vRPCConvertParams[i].methodName,
+                                      vRPCConvertParams[i].paramIdx));
+        membersByName.insert(std::make_pair(vRPCConvertParams[i].methodName,
+                                            vRPCConvertParams[i].paramName));
     }
 }
 

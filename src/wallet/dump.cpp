@@ -4,16 +4,8 @@
 
 #include <wallet/dump.h>
 
-#include <fs.h>
 #include <util/translation.h>
 #include <wallet/wallet.h>
-
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
 static const std::string DUMP_MAGIC = "BITCOIN_CORE_WALLET_DUMP";
 uint32_t DUMP_VERSION = 1;
@@ -27,16 +19,16 @@ bool DumpWallet(CWallet& wallet, bilingual_str& error)
         return false;
     }
 
-    fs::path path = fs::PathFromString(dump_filename);
+    fs::path path = dump_filename;
     path = fs::absolute(path);
     if (fs::exists(path)) {
-        error = strprintf(_("File %s already exists. If you are sure this is what you want, move it out of the way first."), fs::PathToString(path));
+        error = strprintf(_("File %s already exists. If you are sure this is what you want, move it out of the way first."), path.string());
         return false;
     }
-    std::ofstream dump_file;
+    fsbridge::ofstream dump_file;
     dump_file.open(path);
     if (dump_file.fail()) {
-        error = strprintf(_("Unable to open %s for writing"), fs::PathToString(path));
+        error = strprintf(_("Unable to open %s for writing"), path.string());
         return false;
     }
 
@@ -122,13 +114,13 @@ bool CreateFromDump(const std::string& name, const fs::path& wallet_path, biling
         return false;
     }
 
-    fs::path dump_path = fs::PathFromString(dump_filename);
+    fs::path dump_path = dump_filename;
     dump_path = fs::absolute(dump_path);
     if (!fs::exists(dump_path)) {
-        error = strprintf(_("Dump file %s does not exist."), fs::PathToString(dump_path));
+        error = strprintf(_("Dump file %s does not exist."), dump_path.string());
         return false;
     }
-    std::ifstream dump_file{dump_path};
+    fsbridge::ifstream dump_file(dump_path);
 
     // Compute the checksum
     CHashWriter hasher(0, 0);
@@ -202,7 +194,8 @@ bool CreateFromDump(const std::string& name, const fs::path& wallet_path, biling
     std::shared_ptr<CWallet> wallet(new CWallet(nullptr /* chain */, /*coinjoin_loader=*/ nullptr, name, std::move(database)), WalletToolReleaseWallet);
     {
         LOCK(wallet->cs_wallet);
-        DBErrors load_wallet_ret = wallet->LoadWallet();
+        bool first_run = true;
+        DBErrors load_wallet_ret = wallet->LoadWallet(first_run);
         if (load_wallet_ret != DBErrors::LOAD_OK) {
             error = strprintf(_("Error creating %s"), name);
             return false;

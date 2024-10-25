@@ -17,7 +17,6 @@ only succeeds past a given node once its nMinimumChainWork has been exceeded.
 
 import time
 
-from test_framework.p2p import P2PInterface, msg_getheaders
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 
@@ -44,9 +43,6 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         for i in range(self.num_nodes-1):
             self.connect_nodes(i+1, i)
 
-        # Set clock of node2 2 days ahead, to keep it in IBD during this test.
-        self.nodes[2].setmocktime(int(time.time()) + 48*60*60)
-
     def run_test(self):
         # Start building a chain on node0.  node2 shouldn't be able to sync until node1's
         # minchainwork is exceeded
@@ -57,8 +53,8 @@ class MinimumChainWorkTest(BitcoinTestFramework):
 
         num_blocks_to_generate = int((self.node_min_work[1] - starting_chain_work) / REGTEST_WORK_PER_BLOCK)
         self.log.info("Generating %d blocks on node0", num_blocks_to_generate)
-        hashes = self.generatetoaddress(self.nodes[0], num_blocks_to_generate,
-                                        self.nodes[0].get_deterministic_priv_key().address, sync_fun=self.no_op)
+        hashes = self.nodes[0].generatetoaddress(num_blocks_to_generate,
+                                                 self.nodes[0].get_deterministic_priv_key().address)
 
         self.log.info("Node0 current chain work: %s", self.nodes[0].getblockheader(hashes[-1])['chainwork'])
 
@@ -78,17 +74,8 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         assert self.nodes[1].getbestblockhash() != self.nodes[0].getbestblockhash()
         assert_equal(self.nodes[2].getblockcount(), starting_blockcount)
 
-        self.log.info("Check that getheaders requests to node2 are ignored")
-        peer = self.nodes[2].add_p2p_connection(P2PInterface())
-        msg = msg_getheaders()
-        msg.locator.vHave = [int(self.nodes[2].getbestblockhash(), 16)]
-        msg.hashstop = 0
-        peer.send_and_ping(msg)
-        time.sleep(5)
-        assert ("headers" not in peer.last_message or len(peer.last_message["headers"].headers) == 0)
-
         self.log.info("Generating one more block")
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generatetoaddress(1, self.nodes[0].get_deterministic_priv_key().address)
 
         self.log.info("Verifying nodes are all synced")
 
@@ -98,15 +85,8 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         # insufficient work chain, in which case we'd need to reconnect them to
         # continue the test.
 
+        self.sync_all()
         self.log.info("Blockcounts: %s", [n.getblockcount() for n in self.nodes])
-
-        self.log.info("Test that getheaders requests to node2 are not ignored")
-        peer.send_and_ping(msg)
-        assert "headers" in peer.last_message
-
-        # Verify that node2 is in fact still in IBD (otherwise this test may
-        # not be exercising the logic we want!)
-        assert_equal(self.nodes[2].getblockchaininfo()['initialblockdownload'], True)
 
         self.log.info("Test -minimumchainwork with a non-hex value")
         self.stop_node(0)

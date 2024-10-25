@@ -13,7 +13,6 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
-#include <txorphanage.h>
 #include <validation.h>
 #include <validationinterface.h>
 
@@ -40,8 +39,6 @@ FUZZ_TARGET_INIT(process_messages, initialize_process_messages)
     SetMockTime(1610000000); // any time to successfully reset ibd
     chainstate.ResetIbd();
 
-    LOCK(NetEventsInterface::g_msgproc_mutex);
-
     std::vector<CNode*> peers;
     const auto num_peers_to_add = fuzzed_data_provider.ConsumeIntegralInRange(1, 3);
     for (int i = 0; i < num_peers_to_add; ++i) {
@@ -65,16 +62,19 @@ FUZZ_TARGET_INIT(process_messages, initialize_process_messages)
 
         CNode& random_node = *PickValue(fuzzed_data_provider, peers);
 
-        connman.FlushSendBuffer(random_node);
-        (void)connman.ReceiveMsgFrom(random_node, std::move(net_msg));
+        (void)connman.ReceiveMsgFrom(random_node, net_msg);
         random_node.fPauseSend = false;
 
         try {
             connman.ProcessMessagesOnce(random_node);
         } catch (const std::ios_base::failure&) {
         }
-        g_setup->m_node.peerman->SendMessages(&random_node);
+        {
+            LOCK(random_node.cs_sendProcessing);
+            g_setup->m_node.peerman->SendMessages(&random_node);
+        }
     }
     SyncWithValidationInterfaceQueue();
+    LOCK2(::cs_main, g_cs_orphans); // See init.cpp for rationale for implicit locking order requirement
     g_setup->m_node.connman->StopNodes();
 }

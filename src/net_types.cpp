@@ -4,16 +4,12 @@
 
 #include <net_types.h>
 
-#include <logging.h>
 #include <netaddress.h>
 #include <netbase.h>
 #include <univalue.h>
 
-static const char* BANMAN_JSON_VERSION_KEY{"version"};
-
 CBanEntry::CBanEntry(const UniValue& json)
-    : nVersion(json[BANMAN_JSON_VERSION_KEY].get_int()),
-      nCreateTime(json["ban_created"].get_int64()),
+    : nVersion(json["version"].get_int()), nCreateTime(json["ban_created"].get_int64()),
       nBanUntil(json["banned_until"].get_int64())
 {
 }
@@ -21,7 +17,7 @@ CBanEntry::CBanEntry(const UniValue& json)
 UniValue CBanEntry::ToJson() const
 {
     UniValue json(UniValue::VOBJ);
-    json.pushKV(BANMAN_JSON_VERSION_KEY, nVersion);
+    json.pushKV("version", nVersion);
     json.pushKV("ban_created", nCreateTime);
     json.pushKV("banned_until", nBanUntil);
     return json;
@@ -58,16 +54,11 @@ UniValue BanMapToJson(const banmap_t& bans)
 void BanMapFromJson(const UniValue& bans_json, banmap_t& bans)
 {
     for (const auto& ban_entry_json : bans_json.getValues()) {
-        const int version{ban_entry_json[BANMAN_JSON_VERSION_KEY].get_int()};
-        if (version != CBanEntry::CURRENT_VERSION) {
-            LogPrintf("Dropping entry with unknown version (%s) from ban list\n", version);
-            continue;
-        }
         CSubNet subnet;
         const auto& subnet_str = ban_entry_json[BANMAN_JSON_ADDR_KEY].get_str();
         if (!LookupSubNet(subnet_str, subnet)) {
-            LogPrintf("Dropping entry with unparseable address or subnet (%s) from ban list\n", subnet_str);
-            continue;
+            throw std::runtime_error(
+                strprintf("Cannot parse banned address or subnet: %s", subnet_str));
         }
         bans.insert_or_assign(subnet, CBanEntry{ban_entry_json});
     }

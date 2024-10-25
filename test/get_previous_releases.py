@@ -212,11 +212,14 @@ def build_release(tag, args) -> int:
             print('Tag {} not found'.format(tag))
             return 1
     ret = subprocess.run([
-        'git', 'clone', f'--branch={tag}', '--depth=1', githubUrl, tag
+        'git', 'clone', githubUrl, tag
     ]).returncode
     if ret:
         return ret
     with pushd(tag):
+        ret = subprocess.run(['git', 'checkout', tag]).returncode
+        if ret:
+            return ret
         host = args.host
         if args.depends:
             with pushd('depends'):

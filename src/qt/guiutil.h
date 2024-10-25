@@ -44,7 +44,6 @@ class QAction;
 class QButtonGroup;
 class QDateTime;
 class QFont;
-class QKeySequence;
 class QLineEdit;
 class QMenu;
 class QPoint;
@@ -135,14 +134,6 @@ namespace GUIUtil
 
     // Setup appearance settings if not done yet
     void setupAppearance(QWidget* parent, OptionsModel* model);
-
-    /**
-     * Connects an additional shortcut to a QAbstractButton. Works around the
-     * one shortcut limitation of the button's shortcut property.
-     * @param[in] button    QAbstractButton to assign shortcut to
-     * @param[in] shortcut  QKeySequence to use as shortcut
-     */
-    void AddButtonShortcut(QAbstractButton* button, const QKeySequence& shortcut);
 
     // Parse "dash:" URI into recipient object, return true on successful parsing
     bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);
@@ -419,9 +410,6 @@ namespace GUIUtil
 
     /** Convert seconds into a QString with days, hours, mins, secs */
     QString formatDurationStr(std::chrono::seconds dur);
-
-    /** Convert peer connection time to a QString denominated in the most relevant unit. */
-    QString FormatPeerAge(std::chrono::seconds time_connected);
 
     /** Format CNodeStats.nServices bitmask into a user-readable string */
     QString formatServicesStr(quint64 mask);

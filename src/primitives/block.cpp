@@ -6,7 +6,6 @@
 #include <primitives/block.h>
 
 #include <hash.h>
-#include <hash_x11.h>
 #include <streams.h>
 #include <tinyformat.h>
 

@@ -5,7 +5,6 @@
 #include <map>
 
 #include <dbwrapper.h>
-#include <hash.h>
 #include <index/blockfilterindex.h>
 #include <node/blockstorage.h>
 #include <serialize.h>
@@ -104,7 +103,7 @@ BlockFilterIndex::BlockFilterIndex(BlockFilterType filter_type,
     const std::string& filter_name = BlockFilterTypeName(filter_type);
     if (filter_name.empty()) throw std::invalid_argument("unknown filter_type");
 
-    fs::path path = gArgs.GetDataDirNet() / "indexes" / "blockfilter" / filter_name;
+    fs::path path = GetDataDir() / "indexes" / "blockfilter" / filter_name;
     fs::create_directories(path);
 
     m_name = filter_name + " block filter index";
@@ -147,22 +146,18 @@ bool BlockFilterIndex::CommitInternal(CDBBatch& batch)
     return BaseIndex::CommitInternal(batch);
 }
 
-bool BlockFilterIndex::ReadFilterFromDisk(const FlatFilePos& pos, const uint256& hash, BlockFilter& filter) const
+bool BlockFilterIndex::ReadFilterFromDisk(const FlatFilePos& pos, BlockFilter& filter) const
 {
     CAutoFile filein(m_filter_fileseq->Open(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull()) {
         return false;
     }
 
-    // Check that the hash of the encoded_filter matches the one stored in the db.
     uint256 block_hash;
     std::vector<uint8_t> encoded_filter;
     try {
         filein >> block_hash >> encoded_filter;
-        uint256 result;
-        CHash256().Write(encoded_filter).Finalize(result);
-        if (result != hash) return error("Checksum mismatch in filter decode.");
-        filter = BlockFilter(GetFilterType(), block_hash, std::move(encoded_filter), /*skip_decode_check=*/true);
+        filter = BlockFilter(GetFilterType(), block_hash, std::move(encoded_filter));
     }
     catch (const std::exception& e) {
         return error("%s: Failed to deserialize block filter from disk: %s", __func__, e.what());
@@ -260,7 +255,7 @@ bool BlockFilterIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex
     return true;
 }
 
-[[nodiscard]] static bool CopyHeightIndexToHashIndex(CDBIterator& db_it, CDBBatch& batch,
+static bool CopyHeightIndexToHashIndex(CDBIterator& db_it, CDBBatch& batch,
                                        const std::string& index_name,
                                        int start_height, int stop_height)
 {
@@ -389,7 +384,7 @@ bool BlockFilterIndex::LookupFilter(const CBlockIndex* block_index, BlockFilter&
         return false;
     }
 
-    return ReadFilterFromDisk(entry.pos, entry.hash, filter_out);
+    return ReadFilterFromDisk(entry.pos, filter_out);
 }
 
 bool BlockFilterIndex::LookupFilterHeader(const CBlockIndex* block_index, uint256& header_out)
@@ -433,7 +428,7 @@ bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* st
     filters_out.resize(entries.size());
     auto filter_pos_it = filters_out.begin();
     for (const auto& entry : entries) {
-        if (!ReadFilterFromDisk(entry.pos, entry.hash, *filter_pos_it)) {
+        if (!ReadFilterFromDisk(entry.pos, *filter_pos_it)) {
             return false;
         }
         ++filter_pos_it;

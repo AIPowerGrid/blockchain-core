@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2020 The Bitcoin Core developers
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,7 +9,6 @@
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/peertablemodel.h>
-#include <qt/peertablesortproxy.h>
 
 #include <evo/deterministicmns.h>
 
@@ -43,11 +42,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
-
     peerTableModel = new PeerTableModel(m_node, this);
-    m_peer_table_sort_proxy = new PeerTableSortProxy(this);
-    m_peer_table_sort_proxy->setSourceModel(peerTableModel);
-
     banTableModel = new BanTableModel(m_node, this);
     mnListCached = std::make_shared<CDeterministicMNList>();
 
@@ -224,11 +219,6 @@ PeerTableModel *ClientModel::getPeerTableModel()
     return peerTableModel;
 }
 
-PeerTableSortProxy* ClientModel::peerTableSortProxy()
-{
-    return m_peer_table_sort_proxy;
-}
-
 BanTableModel *ClientModel::getBanTableModel()
 {
     return banTableModel;
@@ -256,7 +246,7 @@ QString ClientModel::formatClientStartupTime() const
 
 QString ClientModel::dataDir() const
 {
-    return GUIUtil::PathToQString(gArgs.GetDataDirNet());
+    return GUIUtil::PathToQString(GetDataDir());
 }
 
 QString ClientModel::blocksDir() const
@@ -393,7 +383,7 @@ bool ClientModel::getProxyInfo(std::string& ip_port) const
 {
     Proxy ipv4, ipv6;
     if (m_node.getProxy((Network) 1, ipv4) && m_node.getProxy((Network) 2, ipv6)) {
-      ip_port = ipv4.proxy.ToStringAddrPort();
+      ip_port = ipv4.proxy.ToStringIPPort();
       return true;
     }
     return false;

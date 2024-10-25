@@ -1,6 +1,5 @@
 #!/bin/sh
 set -x
-set -e
 # "x86_64-apple-ios"
 # "aarch64-apple-ios"
 # "aarch64-apple-ios-sim"
@@ -52,20 +51,22 @@ version_min_flag() {
 
 prepare() {
     download_gmp() {
-        GMP_VERSION="6.3.0"
+        GMP_VERSION="6.2.1"
         CURRENT_DIR=$(pwd)
         echo "$CURRENT_DIR"
         # shellcheck disable=SC2039,SC2164
         pushd ${BUILD}
         mkdir -p "contrib"
         if [ ! -s "contrib/gmp-${GMP_VERSION}.tar.bz2" ]; then
-            curl -L -o "contrib/gmp-${GMP_VERSION}.tar.bz2" https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.bz2
+            curl -L -o "contrib/gmp-${GMP_VERSION}.tar.bz2" https://gmplib.org/download/gmp/gmp-${GMP_VERSION}.tar.bz2
         fi
         rm -rf "contrib/gmp"
         # shellcheck disable=SC2039,SC2164
         pushd contrib
         tar xfj "gmp-${GMP_VERSION}.tar.bz2"
         mv gmp-${GMP_VERSION} gmp
+        rm gmp/compat.c && cp ../../contrib/gmp-patch-6.2.1/compat.c gmp/compat.c
+        rm gmp/longlong.h && cp ../../contrib/gmp-patch-6.2.1/longlong.h gmp/longlong.h
         # shellcheck disable=SC2039,SC2164
         popd #contrib
         # shellcheck disable=SC2039,SC2164
@@ -87,10 +88,10 @@ prepare() {
     download_relic() {
         CURRENT_DIR=$(pwd)
         echo "$CURRENT_DIR"
-        mkdir -p "${CURRENT_DIR}/${BUILD}/depends"
-        if [ ! -s "${CURRENT_DIR}/${BUILD}/depends/relic" ]; then
+        mkdir -p "${CURRENT_DIR}/${BUILD}/contrib"
+        if [ ! -s "${CURRENT_DIR}/${BUILD}/contrib/relic" ]; then
             # shellcheck disable=SC2039,SC2164
-            pushd "${CURRENT_DIR}/${BUILD}/depends"
+            pushd "${CURRENT_DIR}/${BUILD}/contrib"
             git clone --depth 1 --branch "feat/ios-support" https://github.com/pankcuf/relic
             # shellcheck disable=SC2039,SC2164
             pushd relic
@@ -99,7 +100,7 @@ prepare() {
             # shellcheck disable=SC2039,SC2164
             popd #relic
             # shellcheck disable=SC2039,SC2164
-            popd #depends
+            popd #contrib
         fi
     }
     rm -rf ${BUILD}
@@ -114,7 +115,7 @@ build_gmp_arch() {
     ARCH=$2
     PFX=${PLATFORM}-${ARCH}
     # why this works with this host only?
-    HOST=aarch64-apple-darwin
+    HOST=arm-apple-darwin
     # shellcheck disable=SC2039,SC2164
     pushd ${BUILD}
     SDK=$(xcrun --sdk "$PLATFORM" --show-sdk-path)
@@ -142,7 +143,7 @@ CC="$CLANG" CFLAGS="$CFLAGS" CPPFLAGS="$CFLAGS" LDFLAGS="$CFLAGS" \
 --host=${HOST} --prefix="${CURRENT_DIR}/gmplib-${PFX}" \
 --disable-shared --enable-static --disable-assembly -v
 EOF
-    
+
     chmod a+x "$CONFIGURESCRIPT"
     sh "$CONFIGURESCRIPT"
     rm "$CONFIGURESCRIPT"
@@ -153,8 +154,6 @@ EOF
     make -j "$LOGICALCPU_MAX" &> "${CURRENT_DIR}"/log/gmplib-"${PFX}"-build.log
     # shellcheck disable=SC2039
     make install &> "${CURRENT_DIR}"/log/gmplib-"${PFX}"-install.log
-    #make check
-    #exit 1
     # shellcheck disable=SC2039,SC2164
     popd # gmp
     # shellcheck disable=SC2039,SC2164
@@ -259,15 +258,15 @@ build_relic_arch() {
         EXTRA_ARGS+=" -DARCH=X86"
     elif [[ $ARCH = "x86_64" ]]; then
         EXTRA_ARGS+=" -DARCH=X64"
-    elif [[ $ARCH = "arm64" ]]; then
-       # Relic doesn't support aarch64 yet, "ARCH=ARM" is for ARM 32-bit architecture only
-       EXTRA_ARGS+=" -DIOS_ARCH=arm64 -DARCH="
-    elif [[ $ARCH = "armv7s" ]]; then
-        EXTRA_ARGS+=" -DIOS_ARCH=armv7s -DARCH=ARM"
-    elif [[ $ARCH = "armv7k" ]]; then
-        EXTRA_ARGS+=" -DIOS_ARCH=armv7k -DARCH=ARM"
-    elif [[ $ARCH = "arm64_32" ]]; then
-        EXTRA_ARGS+=" -DIOS_ARCH=arm64_32 -DARCH=ARM"
+    else
+        EXTRA_ARGS+=" -DARCH=ARM"
+        if [[ $ARCH = "armv7s" ]]; then
+            EXTRA_ARGS+=" -DIOS_ARCH=armv7s"
+        elif [[ $ARCH = "armv7k" ]]; then
+            EXTRA_ARGS+=" -DIOS_ARCH=armv7k"
+        elif [[ $ARCH = "arm64_32" ]]; then
+            EXTRA_ARGS+=" -DIOS_ARCH=arm64_32"
+        fi
     fi
 
     CURRENT_DIR=$(pwd)
@@ -282,7 +281,7 @@ build_relic_arch() {
     # shellcheck disable=SC2039,SC2164
     popd # "$BUILDDIR"
     # shellcheck disable=SC2039,SC2164
-    popd # depends/relic
+    popd # contrib/relic
 }
 
 build_bls_arch() {
@@ -312,7 +311,7 @@ build_bls_arch() {
         clang -I"../contrib/relic/include" \
           -I"../../depends/relic/include" \
           -I"../../include/dashbls" \
-          -I"../relic-${PFX}/depends/relic/include" \
+          -I"../relic-${PFX}/_deps/relic-build/include" \
           -I"../../src/" \
           -I"../gmplib-${PFX}/include" \
           -x c++ -std=c++14 -stdlib=libc++ -fembed-bitcode -arch "${ARCH}" -isysroot "${SDK}" "${EXTRA_ARGS}" \
@@ -361,8 +360,8 @@ build_target() {
     rm -rf "build/artefacts/${BUILD_IN}"
     mkdir -p "build/artefacts/${BUILD_IN}"
     cp "build/gmplib-${PFX}/lib/libgmp.a" "build/artefacts/${BUILD_IN}"
-    cp "build/relic-${PFX}/depends/relic/lib/librelic_s.a" "build/artefacts/${BUILD_IN}"
-#    cp "build/relic-${PFX}/depends/sodium/libsodium.a" "build/artefacts/${BUILD_IN}"
+    cp "build/relic-${PFX}/_deps/relic-build/lib/librelic_s.a" "build/artefacts/${BUILD_IN}"
+    cp "build/relic-${PFX}/_deps/sodium-build/libsodium.a" "build/artefacts/${BUILD_IN}"
     cp "build/bls-${PFX}/libbls.a" "build/artefacts/${BUILD_IN}"
 #    cp -rf build/bls-"${PFX}"/*.o build/artefacts/"${BUILD_IN}"/include
 #    cp -rf src/*.hpp build/artefacts/"${BUILD_IN}"/include

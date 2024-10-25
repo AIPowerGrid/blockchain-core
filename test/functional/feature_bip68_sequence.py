@@ -21,6 +21,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
+    satoshi_round,
     softfork_active,
 )
 from test_framework.script_util import DUMMY_P2SH_SCRIPT
@@ -37,14 +38,8 @@ class BIP68Test(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.extra_args = [
-            [
-                '-testactivationheight=csv@432',
-                "-acceptnonstdtxn=1",
-            ],
-            [
-                '-testactivationheight=csv@432',
-                "-acceptnonstdtxn=0",
-            ],
+            ["-acceptnonstdtxn=1"],
+            ["-acceptnonstdtxn=0"],
         ]
 
     def skip_test_if_missing_module(self):
@@ -54,7 +49,7 @@ class BIP68Test(BitcoinTestFramework):
         self.relayfee = self.nodes[0].getnetworkinfo()["relayfee"]
 
         # Generate some coins
-        self.generate(self.nodes[0], 110)
+        self.nodes[0].generate(110)
 
         self.log.info("Running test disable flag")
         self.test_disable_flag()
@@ -90,7 +85,7 @@ class BIP68Test(BitcoinTestFramework):
         utxo = utxos[0]
 
         tx1 = CTransaction()
-        value = int((utxo["amount"] - self.relayfee) * COIN)
+        value = int(satoshi_round(utxo["amount"] - self.relayfee)*COIN)
 
         # Check that the disable flag disables relative locktime.
         # If sequence locks were used, this would require 1 block for the
@@ -142,7 +137,7 @@ class BIP68Test(BitcoinTestFramework):
             for i in range(num_outputs):
                 outputs[addresses[i]] = random.randint(1, 20)*0.01
             self.nodes[0].sendmany("", outputs)
-            self.generate(self.nodes[0], 1)
+            self.nodes[0].generate(1)
 
         utxos = self.nodes[0].listunspent()
 
@@ -272,7 +267,7 @@ class BIP68Test(BitcoinTestFramework):
         cur_time = self.mocktime
         for _ in range(10):
             self.nodes[0].setmocktime(cur_time + 600)
-            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+            self.nodes[0].generate(1)
             cur_time += 600
 
         assert tx2.hash in self.nodes[0].getrawmempool()
@@ -287,7 +282,7 @@ class BIP68Test(BitcoinTestFramework):
         self.nodes[0].setmocktime(cur_time+600)
         # Save block template now to use for the reorg later
         tmpl = self.nodes[0].getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
         assert tx2.hash not in self.nodes[0].getrawmempool()
 
         # Now that tx2 is not in the mempool, a sequence locked spend should
@@ -295,7 +290,7 @@ class BIP68Test(BitcoinTestFramework):
         tx3 = test_nonzero_locks(tx2, self.nodes[0], self.relayfee, use_height_lock=False)
         assert tx3.hash in self.nodes[0].getrawmempool()
 
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
         assert tx3.hash not in self.nodes[0].getrawmempool()
 
         # One more test, this time using height locks
@@ -348,7 +343,7 @@ class BIP68Test(BitcoinTestFramework):
         # Reset the chain and get rid of the mocktimed-blocks
         self.nodes[0].setmocktime(self.mocktime)
         self.nodes[0].invalidateblock(self.nodes[0].getblockhash(cur_height+1))
-        self.generate(self.nodes[0], 10, sync_fun=self.no_op)
+        self.nodes[0].generate(10)
 
     # Make sure that BIP68 isn't being used to validate blocks prior to
     # activation height.  If more blocks are mined prior to this test
@@ -401,9 +396,9 @@ class BIP68Test(BitcoinTestFramework):
         min_activation_height = 432
         height = self.nodes[0].getblockcount()
         assert_greater_than(min_activation_height - height, 2)
-        self.generate(self.nodes[0], min_activation_height - height - 2, sync_fun=self.no_op)
+        self.nodes[0].generate(min_activation_height - height - 2)
         assert not softfork_active(self.nodes[0], 'csv')
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
         assert softfork_active(self.nodes[0], 'csv')
         self.sync_blocks()
 

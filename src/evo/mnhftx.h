@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 The Dash Core developers
+// Copyright (c) 2021-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -109,6 +109,8 @@ private:
     // versionBit <-> height
     unordered_lru_cache<uint256, Signals, StaticSaltedHasher> mnhfCache GUARDED_BY(cs_cache) {MNHFCacheSize};
 
+    // This cache is used only for v20 activation to avoid double lock through VersionBitsConditionChecker::SignalHeight
+    VersionBitsCache v20_activation GUARDED_BY(cs_cache);
 public:
     explicit CMNHFManager(CEvoDB& evoDb);
     ~CMNHFManager();

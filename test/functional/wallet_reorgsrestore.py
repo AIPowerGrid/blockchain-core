@@ -32,7 +32,7 @@ class ReorgsRestoreTest(BitcoinTestFramework):
     def run_test(self):
         # Send a tx from which to conflict outputs later
         txid_conflict_from = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), Decimal("10"))
-        self.generate(self.nodes[0], 1)
+        self.nodes[0].generate(1)
         self.sync_blocks()
 
         # Disconnect node1 from others to reorg its chain later
@@ -43,8 +43,7 @@ class ReorgsRestoreTest(BitcoinTestFramework):
         # Send a tx to be unconfirmed later
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), Decimal("10"))
         tx = self.nodes[0].gettransaction(txid)
-        self.generate(self.nodes[0], 4, sync_fun=self.no_op)
-        self.sync_blocks([self.nodes[0], self.nodes[2]])
+        self.nodes[0].generate(4)
         tx_before_reorg = self.nodes[0].gettransaction(txid)
         assert_equal(tx_before_reorg["confirmations"], 4)
 
@@ -63,9 +62,9 @@ class ReorgsRestoreTest(BitcoinTestFramework):
         conflicting = self.nodes[0].signrawtransactionwithwallet(self.nodes[0].createrawtransaction(inputs, outputs_2))
 
         conflicted_txid = self.nodes[0].sendrawtransaction(conflicted["hex"])
-        self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+        self.nodes[0].generate(1)
         conflicting_txid = self.nodes[2].sendrawtransaction(conflicting["hex"])
-        self.generate(self.nodes[2], 9, sync_fun=self.no_op)
+        self.nodes[2].generate(9)
 
         # Reconnect node0 and node2 and check that conflicted_txid is effectively conflicted
         self.connect_nodes(0, 2)
@@ -79,11 +78,11 @@ class ReorgsRestoreTest(BitcoinTestFramework):
         self.restart_node(0)
 
         # The block chain re-orgs and the tx is included in a different block
-        self.generate(self.nodes[1], 9, sync_fun=self.no_op)
+        self.nodes[1].generate(9)
         self.nodes[1].sendrawtransaction(tx["hex"])
-        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
+        self.nodes[1].generate(1)
         self.nodes[1].sendrawtransaction(conflicted["hex"])
-        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
+        self.nodes[1].generate(1)
 
         # Node0 wallet file is loaded on longest sync'ed node1
         self.stop_node(1)

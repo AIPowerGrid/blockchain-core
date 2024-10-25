@@ -15,7 +15,6 @@
 #include <streams.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
 #include <util/strencodings.h>
 
 #include <array>
@@ -265,7 +264,10 @@ FUZZ_TARGET_INIT(ellswift_roundtrip, initialize_key)
 {
     FuzzedDataProvider fdp{buffer.data(), buffer.size()};
 
-    CKey key = ConsumePrivateKey(fdp, /*compressed=*/true);
+    auto key_bytes = fdp.ConsumeBytes<uint8_t>(32);
+    key_bytes.resize(32);
+    CKey key;
+    key.Set(key_bytes.begin(), key_bytes.end(), true);
     if (!key.IsValid()) return;
 
     auto ent32 = fdp.ConsumeBytes<std::byte>(32);
@@ -274,10 +276,7 @@ FUZZ_TARGET_INIT(ellswift_roundtrip, initialize_key)
     auto encoded_ellswift = key.EllSwiftCreate(ent32);
     auto decoded_pubkey = encoded_ellswift.Decode();
 
-    uint256 hash{ConsumeUInt256(fdp)};
-    std::vector<unsigned char> sig;
-    key.Sign(hash, sig);
-    assert(decoded_pubkey.Verify(hash, sig));
+    assert(key.VerifyPubKey(decoded_pubkey));
 }
 
 FUZZ_TARGET_INIT(bip324_ecdh, initialize_key)
@@ -285,11 +284,17 @@ FUZZ_TARGET_INIT(bip324_ecdh, initialize_key)
     FuzzedDataProvider fdp{buffer.data(), buffer.size()};
 
     // We generate private key, k1.
-    CKey k1 = ConsumePrivateKey(fdp, /*compressed=*/true);
+    auto rnd32 = fdp.ConsumeBytes<uint8_t>(32);
+    rnd32.resize(32);
+    CKey k1;
+    k1.Set(rnd32.begin(), rnd32.end(), true);
     if (!k1.IsValid()) return;
 
     // They generate private key, k2.
-    CKey k2 = ConsumePrivateKey(fdp, /*compressed=*/true);
+    rnd32 = fdp.ConsumeBytes<uint8_t>(32);
+    rnd32.resize(32);
+    CKey k2;
+    k2.Set(rnd32.begin(), rnd32.end(), true);
     if (!k2.IsValid()) return;
 
     // We construct an ellswift encoding for our key, k1_ellswift.

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -116,7 +116,7 @@ CTransactionBuilder::CTransactionBuilder(std::shared_ptr<CWallet> pwalletIn, con
     // Generate a feerate which will be used to consider if the remainder is dust and will go into fees or not
     coinControl.m_discard_feerate = ::GetDiscardRate(*pwallet);
     // Generate a feerate which will be used by calculations of this class and also by CWallet::CreateTransaction
-    coinControl.m_feerate = std::max(GetRequiredFeeRate(*pwallet), pwallet->m_pay_tx_fee);
+    coinControl.m_feerate = std::max(pwallet->chain().estimateSmartFee(int(pwallet->m_confirm_target), true, nullptr), pwallet->m_pay_tx_fee);
     // Change always goes back to origin
     coinControl.destChange = tallyItemIn.txdest;
     // Only allow tallyItems inputs for tx creation

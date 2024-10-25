@@ -7,9 +7,6 @@
 
 #include <fs.h>
 
-#include <string>
-#include <vector>
-
 class CWallet;
 
 struct bilingual_str;

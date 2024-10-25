@@ -57,16 +57,15 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-BlockAssembler::Options::Options()
-{
+BlockAssembler::Options::Options() {
     blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);
     nBlockMaxSize = DEFAULT_BLOCK_MAX_SIZE;
 }
 
 BlockAssembler::BlockAssembler(CChainState& chainstate, const NodeContext& node, const CTxMemPool& mempool, const CChainParams& params, const Options& options) :
-      m_blockman(chainstate.m_blockman),
+      m_blockman(Assert(node.chainman)->m_blockman),
       m_cpoolman(*Assert(node.cpoolman)),
-      m_chain_helper(chainstate.ChainHelper()),
+      m_chain_helper(*Assert(node.chain_helper)),
       m_chainstate(chainstate),
       m_dmnman(*Assert(node.dmnman)),
       m_evoDb(*Assert(node.evodb)),

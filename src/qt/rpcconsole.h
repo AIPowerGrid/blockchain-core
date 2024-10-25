@@ -12,10 +12,9 @@
 #include <net.h>
 #include <uint256.h>
 
-#include <QByteArray>
+#include <QWidget>
 #include <QCompleter>
 #include <QThread>
-#include <QWidget>
 
 class ClientModel;
 class RPCTimerInterface;
@@ -135,6 +134,10 @@ public Q_SLOTS:
     void browseHistory(int offset);
     /** Scroll console view to end */
     void scrollToEnd();
+    /** Handle selection caching before update */
+    void peerLayoutAboutToChange();
+    /** Handle updated peer information */
+    void peerLayoutChanged();
     /** Disconnect a selected node on the Peers tab */
     void disconnectSelectedNode();
     /** Ban a selected node on the Peers tab */
@@ -151,11 +154,6 @@ Q_SIGNALS:
     void handleRestart(QStringList args);
 
 private:
-    struct TranslatedStrings {
-        const QString yes{tr("Yes")}, no{tr("No")}, to{tr("To")}, from{tr("From")},
-            ban_for{tr("Ban for")}, na{tr("N/A")}, unknown{tr("Unknown")};
-    } const ts;
-
     void startExecutor();
     void setTrafficGraphRange(TrafficGraphData::GraphRange range);
     /** Build parameter list for restart */
@@ -190,9 +188,6 @@ private:
     QCompleter *autoCompleter = nullptr;
     QThread thread;
     WalletModel* m_last_wallet_model{nullptr};
-    bool m_is_executing{false};
-    QByteArray m_peer_widget_header_state;
-    QByteArray m_banlist_widget_header_state;
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();

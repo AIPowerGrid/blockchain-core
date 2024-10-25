@@ -11,6 +11,7 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <masternode/sync.h>
+#include <net_processing.h>
 #include <node/blockstorage.h>
 #include <node/ui_interface.h>
 #include <scheduler.h>
@@ -22,18 +23,14 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-static bool ChainLocksSigningEnabled(const CSporkManager& sporkman)
-{
-    return sporkman.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 0;
-}
-
 namespace llmq
 {
 std::unique_ptr<CChainLocksHandler> chainLocksHandler;
 
 CChainLocksHandler::CChainLocksHandler(CChainState& chainstate, CQuorumManager& _qman, CSigningManager& _sigman,
                                        CSigSharesManager& _shareman, CSporkManager& sporkman, CTxMemPool& _mempool,
-                                       const CMasternodeSync& mn_sync, bool is_masternode) :
+                                       const CMasternodeSync& mn_sync, const std::unique_ptr<PeerManager>& peerman,
+                                       bool is_masternode) :
     m_chainstate(chainstate),
     qman(_qman),
     sigman(_sigman),
@@ -41,10 +38,10 @@ CChainLocksHandler::CChainLocksHandler(CChainState& chainstate, CQuorumManager& 
     spork_manager(sporkman),
     mempool(_mempool),
     m_mn_sync(mn_sync),
+    m_peerman(peerman),
     m_is_masternode{is_masternode},
     scheduler(std::make_unique<CScheduler>()),
-    scheduler_thread(
-        std::make_unique<std::thread>(std::thread(util::TraceThread, "cl-schdlr", [&] { scheduler->serviceQueue(); })))
+    scheduler_thread(std::make_unique<std::thread>(std::thread(util::TraceThread, "cl-schdlr", [&] { scheduler->serviceQueue(); })))
 {
 }
 
@@ -96,10 +93,31 @@ CChainLockSig CChainLocksHandler::GetBestChainLock() const
     return bestChainLock;
 }
 
-MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig,
-                                                                const uint256& hash)
+PeerMsgRet CChainLocksHandler::ProcessMessage(const CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+{
+    if (!AreChainLocksEnabled(spork_manager)) {
+        return {};
+    }
+
+    if (msg_type == NetMsgType::CLSIG) {
+        CChainLockSig clsig;
+        vRecv >> clsig;
+
+        return ProcessNewChainLock(pfrom.GetId(), clsig, ::SerializeHash(clsig));
+    }
+    return {};
+}
+
+PeerMsgRet CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
 {
     CheckActiveState();
+
+    CInv clsigInv(MSG_CLSIG, hash);
+
+    if (from != -1) {
+        LOCK(cs_main);
+        EraseObjectRequest(from, clsigInv);
+    }
 
     {
         LOCK(cs);
@@ -116,7 +134,7 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
     if (const auto ret = VerifyChainLock(clsig); ret != VerifyRecSigStatus::Valid) {
         LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), status=%d peer=%d\n", __func__, clsig.ToString(), ToUnderlying(ret), from);
         if (from != -1) {
-            return MisbehavingError{10};
+            return tl::unexpected{10};
         }
         return {};
     }
@@ -145,12 +163,14 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
         // Note: make sure to still relay clsig further.
     }
 
-    CInv clsigInv(MSG_CLSIG, hash);
+    // Note: do not hold cs while calling RelayInv
+    AssertLockNotHeld(cs);
+    Assert(m_peerman)->RelayInv(clsigInv);
 
     if (pindex == nullptr) {
         // we don't know the block/header for this CLSIG yet, so bail out for now
         // when the block or the header later comes in, we will enforce the correct chain
-        return clsigInv;
+        return {};
     }
 
     scheduler->scheduleFromNow([&]() {
@@ -160,7 +180,7 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
 
     LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- processed new CLSIG (%s), peer=%d\n",
               __func__, clsig.ToString(), from);
-    return clsigInv;
+    return {};
 }
 
 void CChainLocksHandler::AcceptedBlockHeader(gsl::not_null<const CBlockIndex*> pindexNew)
@@ -501,10 +521,10 @@ void CChainLocksHandler::EnforceBestChainLock()
     uiInterface.NotifyChainLock(clsig->getBlockHash().ToString(), clsig->getHeight());
 }
 
-MessageProcessingResult CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
+void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
 {
     if (!isEnabled) {
-        return {};
+        return;
     }
 
     CChainLockSig clsig;
@@ -513,17 +533,17 @@ MessageProcessingResult CChainLocksHandler::HandleNewRecoveredSig(const llmq::CR
 
         if (recoveredSig.getId() != lastSignedRequestId || recoveredSig.getMsgHash() != lastSignedMsgHash) {
             // this is not what we signed, so lets not create a CLSIG for it
-            return {};
+            return;
         }
         if (bestChainLock.getHeight() >= lastSignedHeight) {
             // already got the same or a better CLSIG through the CLSIG message
-            return {};
+            return;
         }
 
 
         clsig = CChainLockSig(lastSignedHeight, lastSignedMsgHash, recoveredSig.sig.Get());
     }
-    return ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
+    ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
 }
 
 bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash) const
@@ -657,6 +677,11 @@ void CChainLocksHandler::Cleanup()
 bool AreChainLocksEnabled(const CSporkManager& sporkman)
 {
     return sporkman.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED);
+}
+
+bool ChainLocksSigningEnabled(const CSporkManager& sporkman)
+{
+    return sporkman.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 0;
 }
 
 } // namespace llmq

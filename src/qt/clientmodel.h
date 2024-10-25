@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2020 The Bitcoin Core developers
-// Copyright (c) 2014-2024 The Dash Core developers
+// Copyright (c) 2014-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -20,7 +20,6 @@ class BanTableModel;
 class CBlockIndex;
 class OptionsModel;
 class PeerTableModel;
-class PeerTableSortProxy;
 enum class SynchronizationState;
 
 QT_BEGIN_NAMESPACE
@@ -59,7 +58,6 @@ public:
     interfaces::CoinJoin::Options& coinJoinOptions() const { return m_node.coinJoinOptions(); }
     OptionsModel *getOptionsModel();
     PeerTableModel *getPeerTableModel();
-    PeerTableSortProxy* peerTableSortProxy();
     BanTableModel *getBanTableModel();
 
     //! Return number of connections, default is in- and outbound (total)
@@ -111,7 +109,6 @@ private:
     std::unique_ptr<interfaces::Handler> m_handler_notify_additional_data_sync_progess_changed;
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
-    PeerTableSortProxy* m_peer_table_sort_proxy{nullptr};
     BanTableModel *banTableModel;
 
     //! A thread to interact with m_node asynchronously

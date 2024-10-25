@@ -46,7 +46,7 @@ class TestP2PConn(P2PInterface):
 
 class LLMQEvoNodesTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(5, 4, [["-testactivationheight=mn_rr@1200"]] * 5, evo_count=5)
+        self.set_dash_test_params(5, 4, fast_dip3_enforcement=True, evo_count=5)
         self.set_dash_llmq_test_params(4, 4)
 
     def run_test(self):
@@ -56,6 +56,12 @@ class LLMQEvoNodesTest(DashTestFramework):
 
         self.test_node = self.nodes[0].add_p2p_connection(TestP2PConn())
         null_hash = format(0, "064x")
+
+        for i in range(len(self.nodes)):
+            if i != 0:
+                self.connect_nodes(i, 0)
+
+        self.activate_dip8()
 
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 1)
@@ -89,7 +95,8 @@ class LLMQEvoNodesTest(DashTestFramework):
         for i in range(self.evo_count):
             evo_info = self.dynamically_add_masternode(evo=True)
             evo_protxhash_list.append(evo_info.proTxHash)
-            self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks())
+            self.nodes[0].generate(8)
+            self.sync_blocks(self.nodes)
 
             expectedUpdated.append(evo_info.proTxHash)
             b_i = self.nodes[0].getbestblockhash()
@@ -107,35 +114,37 @@ class LLMQEvoNodesTest(DashTestFramework):
         self.test_evo_protx_are_in_mnlist(evo_protxhash_list)
 
         self.log.info("Test that EvoNodes are paid 4x blocks in a row")
-        self.test_evo_payments(window_analysis=48, mnrr_active=False)
+        self.test_evo_payments(window_analysis=48)
         self.test_masternode_winners()
 
+        self.activate_v20()
         self.activate_mn_rr()
-        self.log.info("Activated MN RewardReallocation, current height:" + str(self.nodes[0].getblockcount()))
+        self.log.info("Activated MN RewardReallocation at height:" + str(self.nodes[0].getblockcount()))
 
         # Generate a few blocks to make EvoNode/MN analysis on a pure MN RewardReallocation window
         self.bump_mocktime(1)
-        self.generate(self.nodes[0], 4, sync_fun=lambda: self.sync_blocks())
+        self.nodes[0].generate(4)
+        self.sync_blocks()
 
         self.log.info("Test that EvoNodes are paid 1 block in a row after MN RewardReallocation activation")
-        self.test_evo_payments(window_analysis=48, mnrr_active=True)
+        self.test_evo_payments(window_analysis=48, v20active=True)
         self.test_masternode_winners(mn_rr_active=True)
 
         self.log.info(self.nodes[0].masternodelist())
 
         return
 
-    def test_evo_payments(self, window_analysis, mnrr_active):
+    def test_evo_payments(self, window_analysis, v20active=False):
         current_evo = None
         consecutive_payments = 0
-        n_payments = 0 if mnrr_active else 4
+        n_payments = 0 if v20active else 4
         for i in range(0, window_analysis):
             payee = self.get_mn_payee_for_block(self.nodes[0].getbestblockhash())
             if payee is not None and payee.evo:
                 if current_evo is not None and payee.proTxHash == current_evo.proTxHash:
                     # same EvoNode
                     assert consecutive_payments > 0
-                    if not mnrr_active:
+                    if not v20active:
                         consecutive_payments += 1
                     consecutive_payments_rpc = self.nodes[0].protx('info', current_evo.proTxHash)['state']['consecutivePayments']
                     assert_equal(consecutive_payments, consecutive_payments_rpc)
@@ -150,7 +159,7 @@ class LLMQEvoNodesTest(DashTestFramework):
                     consecutive_payments_rpc = self.nodes[0].protx('info', payee.proTxHash)['state']['consecutivePayments']
                     # if EvoNode is the one we start "for" loop with,
                     # we have no idea how many times it was paid before - rely on rpc results here
-                    new_payment_value = 0 if mnrr_active else 1
+                    new_payment_value = 0 if v20active else 1
                     consecutive_payments = consecutive_payments_rpc if i == 0 and current_evo is None else new_payment_value
                     current_evo = payee
                     assert_equal(consecutive_payments, consecutive_payments_rpc)
@@ -165,7 +174,7 @@ class LLMQEvoNodesTest(DashTestFramework):
                 current_evo = None
                 consecutive_payments = 0
 
-            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+            self.nodes[0].generate(1)
             if i % 8 == 0:
                 self.sync_blocks()
 
@@ -213,7 +222,8 @@ class LLMQEvoNodesTest(DashTestFramework):
         collateral_amount = 4000
         outputs = {collateral_address: collateral_amount, funds_address: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
-        self.generate(self.nodes[0], 8)
+        self.nodes[0].generate(8)
+        self.sync_all(self.nodes)
 
         rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1)
         collateral_vout = 0

@@ -1,9 +1,9 @@
 AC_PREREQ([2.69])
 dnl Don't forget to push a corresponding tag when updating any of _CLIENT_VERSION_* numbers
-define(_CLIENT_VERSION_MAJOR, 22)
-define(_CLIENT_VERSION_MINOR, 0)
-define(_CLIENT_VERSION_BUILD, 0)
-define(_CLIENT_VERSION_IS_RELEASE, false)
+define(_CLIENT_VERSION_MAJOR, 21)
+define(_CLIENT_VERSION_MINOR, 1)
+define(_CLIENT_VERSION_BUILD, 1)
+define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2024)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Dash Core]])
@@ -72,15 +72,15 @@ AC_ARG_ENABLE([c++20],
   [use_cxx20=$enableval],
   [use_cxx20=no])
 
-dnl Require C++17 compiler (no GNU extensions)
-if test "$use_cxx20" = "no"; then
-  AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
-else
+dnl Require C++17 or C++20 compiler (no GNU extensions)
+if test "x$use_cxx20" = xyes; then
   AX_CXX_COMPILE_STDCXX([20], [noext], [mandatory])
+else
+  AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 fi
 
-dnl check if additional link flags are required for std::filesystem
-CHECK_FILESYSTEM
+dnl Check if -latomic is required for <std::atomic>
+CHECK_ATOMIC
 
 dnl Unless the user specified OBJCXX, force it to be the same as CXX. This ensures
 dnl that we get the same -std flags for both.
@@ -103,8 +103,8 @@ AC_PATH_TOOL(STRIP, strip)
 AC_PATH_TOOL(GCOV, gcov)
 AC_PATH_TOOL(LLVM_COV, llvm-cov)
 AC_PATH_PROG(LCOV, lcov)
-dnl The minimum supported version is specified in .python-version and should be used if available, see doc/dependencies.md
-AC_PATH_PROGS([PYTHON], [python3.9 python3.10 python3.11 python3.12 python3 python])
+dnl Python 3.8 is specified in .python-version and should be used if available, see doc/dependencies.md
+AC_PATH_PROGS([PYTHON], [python3.8 python3.9 python3.10 python3.11 python3.12 python3 python])
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
 AC_PATH_PROG(CCACHE,ccache)
@@ -135,11 +135,11 @@ AC_ARG_WITH([bdb],
   [use_bdb=$withval],
   [use_bdb=auto])
 
-AC_ARG_ENABLE([usdt],
-  [AS_HELP_STRING([--enable-usdt],
-  [enable tracepoints for Userspace, Statically Defined Tracing (default is yes if sys/sdt.h is found)])],
-  [use_usdt=$enableval],
-  [use_usdt=yes])
+AC_ARG_ENABLE([ebpf],
+  [AS_HELP_STRING([--enable-ebpf],
+  [enable eBPF tracing (default is yes if sys/sdt.h is found)])],
+  [use_ebpf=$enableval],
+  [use_ebpf=yes])
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
@@ -459,13 +459,7 @@ if test "x$enable_werror" = "xyes"; then
   AX_CHECK_COMPILE_FLAG([-Werror=range-loop-analysis],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=range-loop-analysis"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Werror=unused-variable],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=unused-variable"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Werror=date-time],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=date-time"],,[[$CXXFLAG_WERROR]])
-
-  dnl -Wreturn-type is broken in GCC for MinGW-w64.
-  dnl https://sourceforge.net/p/mingw-w64/bugs/306/
-  AX_CHECK_COMPILE_FLAG([-Werror=return-type], [ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=return-type"], [], [$CXXFLAG_WERROR],
-                        [AC_LANG_SOURCE([[#include <cassert>
-                                          int f(){ assert(false); }]])])
-
+  AX_CHECK_COMPILE_FLAG([-Werror=return-type],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=return-type"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Werror=conditional-uninitialized],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=conditional-uninitialized"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Werror=sign-compare],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=sign-compare"],,[[$CXXFLAG_WERROR]])
   dnl -Wsuggest-override is broken with GCC before 9.2
@@ -475,10 +469,6 @@ if test "x$enable_werror" = "xyes"; then
   AX_CHECK_COMPILE_FLAG([-Werror=unreachable-code-loop-increment],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=unreachable-code-loop-increment"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Werror=mismatched-tags], [ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=mismatched-tags"], [], [$CXXFLAG_WERROR])
   AX_CHECK_COMPILE_FLAG([-Werror=implicit-fallthrough], [ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=implicit-fallthrough"], [], [$CXXFLAG_WERROR])
-
-  if test x$suppress_external_warnings != xno ; then
-    AX_CHECK_COMPILE_FLAG([-Werror=documentation],[ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Werror=documentation"],,[[$CXXFLAG_WERROR]])
-  fi
 fi
 
 if test "x$CXXFLAGS_overridden" = "xno"; then
@@ -503,10 +493,6 @@ if test "x$CXXFLAGS_overridden" = "xno"; then
                         [AC_LANG_SOURCE([[struct A { virtual void f(); }; struct B : A { void f() final; };]])])
   AX_CHECK_COMPILE_FLAG([-Wunreachable-code-loop-increment],[WARN_CXXFLAGS="$WARN_CXXFLAGS -Wunreachable-code-loop-increment"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Wimplicit-fallthrough], [WARN_CXXFLAGS="$WARN_CXXFLAGS -Wimplicit-fallthrough"], [], [$CXXFLAG_WERROR])
-
-  if test x$suppress_external_warnings != xno ; then
-    AX_CHECK_COMPILE_FLAG([-Wdocumentation],[WARN_CXXFLAGS="$WARN_CXXFLAGS -Wdocumentation"],,[[$CXXFLAG_WERROR]])
-  fi
 
   dnl Some compilers (gcc) ignore unknown -Wno-* options, but warn about all
   dnl unknown options if any other warning is produced. Test the -Wfoo case, and
@@ -539,24 +525,6 @@ AX_CHECK_COMPILE_FLAG([-msse4.2],[[SSE42_CXXFLAGS="-msse4.2"]],,[[$CXXFLAG_WERRO
 AX_CHECK_COMPILE_FLAG([-msse4.1],[[SSE41_CXXFLAGS="-msse4.1"]],,[[$CXXFLAG_WERROR]])
 AX_CHECK_COMPILE_FLAG([-mavx -mavx2],[[AVX2_CXXFLAGS="-mavx -mavx2"]],,[[$CXXFLAG_WERROR]])
 AX_CHECK_COMPILE_FLAG([-msse4 -msha],[[X86_SHANI_CXXFLAGS="-msse4 -msha"]],,[[$CXXFLAG_WERROR]])
-
-enable_clmul=
-AX_CHECK_COMPILE_FLAG([-mpclmul], [enable_clmul=yes], [], [$CXXFLAG_WERROR], [AC_LANG_PROGRAM([
-  #include <stdint.h>
-  #include <x86intrin.h>
-], [
-  __m128i a = _mm_cvtsi64_si128((uint64_t)7);
-  __m128i b = _mm_clmulepi64_si128(a, a, 37);
-  __m128i c = _mm_srli_epi64(b, 41);
-  __m128i d = _mm_xor_si128(b, c);
-  uint64_t e = _mm_cvtsi128_si64(d);
-  return e == 0;
-])])
-
-if test x$enable_clmul = xyes; then
-  CLMUL_CXXFLAGS="-mpclmul"
-  AC_DEFINE(HAVE_CLMUL, 1, [Define this symbol if clmul instructions can be used])
-fi
 
 TEMP_CXXFLAGS="$CXXFLAGS"
 CXXFLAGS="$CXXFLAGS $SSE42_CXXFLAGS"
@@ -670,7 +638,7 @@ CXXFLAGS="$TEMP_CXXFLAGS"
 
 fi
 
-CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -DGSL_NO_IOSTREAMS"
+CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO"
 
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
@@ -767,8 +735,8 @@ case $host in
          dnl It's safe to add these paths even if the functionality is disabled by
          dnl the user (--without-wallet or --without-gui for example).
 
-         if test "x$use_bdb" != xno && $BREW list --versions berkeley-db@4 >/dev/null && test "x$BDB_CFLAGS" = "x" && test "x$BDB_LIBS" = "x"; then
-           bdb_prefix=$($BREW --prefix berkeley-db@4 2>/dev/null)
+         if test "x$use_bdb" != xno && $BREW list --versions berkeley-db4 >/dev/null && test "x$BDB_CFLAGS" = "x" && test "x$BDB_LIBS" = "x"; then
+           bdb_prefix=$($BREW --prefix berkeley-db4 2>/dev/null)
            dnl This must precede the call to BITCOIN_FIND_BDB48 below.
            BDB_CFLAGS="-I$bdb_prefix/include"
            BDB_LIBS="-L$bdb_prefix/lib -ldb_cxx-4.8"
@@ -778,8 +746,8 @@ case $host in
            export PKG_CONFIG_PATH="$($BREW --prefix sqlite3 2>/dev/null)/lib/pkgconfig:$PKG_CONFIG_PATH"
          fi
 
-         if $BREW list --versions qt@5 >/dev/null; then
-           export PKG_CONFIG_PATH="$($BREW --prefix qt@5 2>/dev/null)/lib/pkgconfig:$PKG_CONFIG_PATH"
+         if $BREW list --versions qt5 >/dev/null; then
+           export PKG_CONFIG_PATH="$($BREW --prefix qt5 2>/dev/null)/lib/pkgconfig:$PKG_CONFIG_PATH"
          fi
 
          gmp_prefix=$($BREW --prefix gmp 2>/dev/null)
@@ -917,9 +885,6 @@ AC_C_BIGENDIAN
 dnl Check for pthread compile/link requirements
 AX_PTHREAD
 
-dnl Check if -latomic is required for <std::atomic>
-CHECK_ATOMIC
-
 dnl The following macro will add the necessary defines to bitcoin-config.h, but
 dnl they also need to be passed down to any subprojects. Pull the results out of
 dnl the cache and add them to CPPFLAGS.
@@ -979,8 +944,7 @@ if test x$use_hardening != xno; then
 
   case $host in
     *mingw*)
-      dnl stack-clash-protection doesn't compile with GCC 10 and earlier.
-      dnl In any case, it is a no-op for Windows.
+      dnl stack-clash-protection doesn't currently work, and likely should just be skipped for Windows.
       dnl See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458 for more details.
       ;;
     *)
@@ -988,11 +952,6 @@ if test x$use_hardening != xno; then
       ;;
   esac
 
-  case $host in
-    *aarch64*)
-      AX_CHECK_COMPILE_FLAG([-mbranch-protection=bti], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -mbranch-protection=bti"])
-    ;;
-  esac
 
   dnl When enable_debug is yes, all optimizations are disabled.
   dnl However, FORTIFY_SOURCE requires that there is some level of optimization, otherwise it does nothing and just creates a compiler warning.
@@ -1060,20 +1019,19 @@ AC_CHECK_DECLS([bswap_16, bswap_32, bswap_64],,,
                  #endif])
 
 AC_MSG_CHECKING(for __builtin_clzl)
-
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ ]], [[
  (void) __builtin_clzl(0);
   ]])],
- [ AC_MSG_RESULT(yes); have_clzl=yes; AC_DEFINE(HAVE_BUILTIN_CLZL, 1, [Define this symbol if you have __builtin_clzl])],
- [ AC_MSG_RESULT(no); have_clzl=no;]
+ [ AC_MSG_RESULT(yes); AC_DEFINE(HAVE_BUILTIN_CLZL, 1, [Define this symbol if you have __builtin_clzl])],
+ [ AC_MSG_RESULT(no)]
 )
 
 AC_MSG_CHECKING(for __builtin_clzll)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ ]], [[
   (void) __builtin_clzll(0);
   ]])],
- [ AC_MSG_RESULT(yes); have_clzll=yes; AC_DEFINE(HAVE_BUILTIN_CLZLL, 1, [Define this symbol if you have __builtin_clzll])],
- [ AC_MSG_RESULT(no); have_clzll=no;]
+ [ AC_MSG_RESULT(yes); AC_DEFINE(HAVE_BUILTIN_CLZLL, 1, [Define this symbol if you have __builtin_clzll])],
+ [ AC_MSG_RESULT(no)]
 )
 
 dnl Check for mallopt(M_ARENA_MAX) (to set glibc arenas)
@@ -1199,6 +1157,13 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <unistd.h>
   #include <linux/random.h>]],
  [[ syscall(SYS_getrandom, nullptr, 32, 0); ]])],
  [ AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SYS_GETRANDOM, 1,[Define this symbol if the Linux getrandom system call is available]) ],
+ [ AC_MSG_RESULT(no)]
+)
+
+AC_MSG_CHECKING(for getentropy)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <unistd.h>]],
+ [[ getentropy(nullptr, 32) ]])],
+ [ AC_MSG_RESULT(yes); AC_DEFINE(HAVE_GETENTROPY, 1,[Define this symbol if the BSD getentropy system call is available]) ],
  [ AC_MSG_RESULT(no)]
 )
 
@@ -1432,20 +1397,17 @@ if test x$enable_wallet != xno; then
     fi
 fi
 
-if test x$use_usdt != xno; then
-  AC_MSG_CHECKING([whether Userspace, Statically Defined Tracing tracepoints are supported])
+if test x$use_ebpf != xno; then
+  AC_MSG_CHECKING([whether eBPF tracepoints are supported])
   AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM(
       [#include <sys/sdt.h>],
-      [DTRACE_PROBE(context, event);
-       int a, b, c, d, e, f, g;
-       DTRACE_PROBE7(context, event, a, b, c, d, e, f, g);]
+      [DTRACE_PROBE("context", "event");]
     )],
-    [AC_MSG_RESULT(yes); AC_DEFINE([ENABLE_TRACING], [1], [Define to 1 to enable tracepoints for Userspace, Statically Defined Tracing])],
-    [AC_MSG_RESULT(no); use_usdt=no;]
+    [AC_MSG_RESULT(yes); have_sdt=yes; AC_DEFINE([ENABLE_TRACING], [1], [Define to 1 to enable eBPF user static defined tracepoints])],
+    [AC_MSG_RESULT(no); have_sdt=no;]
   )
 fi
-AM_CONDITIONAL([ENABLE_USDT_TRACEPOINTS], [test "$use_usdt" = "yes"])
 
 dnl Check for libminiupnpc (optional)
 if test x$use_upnp != xno; then
@@ -1492,20 +1454,11 @@ fi
 if test x$use_boost = xyes; then
 
 dnl Check for Boost headers
-AX_BOOST_BASE([1.73.0],[],[AC_MSG_ERROR([Boost is not available!])])
+AX_BOOST_BASE([1.64.0],[],[AC_MSG_ERROR([Boost is not available!])])
 if test x$want_boost = xno; then
     AC_MSG_ERROR([[only libdashconsensus can be built without boost]])
 fi
-
-  dnl we don't use multi_index serialization
-  BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_DISABLE_SERIALIZATION"
-
-dnl Prevent use of std::unary_function, which was removed in C++17,
-dnl and will generate warnings with newer compilers for Boost
-dnl older than 1.80.
-dnl See: https://github.com/boostorg/config/pull/430.
-AX_CHECK_PREPROC_FLAG([-DBOOST_NO_CXX98_FUNCTION_BASE], [BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"], [], [$CXXFLAG_WERROR],
-                      [AC_LANG_PROGRAM([[#include <boost/config.hpp>]])])
+AX_BOOST_FILESYSTEM
 
 dnl Opt-in to Boost Process
 if test "x$boost_process" != xno; then
@@ -1518,8 +1471,15 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <boost/process.hpp>]],
 fi
 
 if test x$suppress_external_warnings != xno; then
+    dnl Prevent use of std::unary_function, which was removed in C++17,
+    dnl and will generate warnings with newer compilers.
+    dnl See: https://github.com/boostorg/container_hash/issues/22.
+    BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"
+
     BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
 fi
+
+BOOST_LIBS="$BOOST_LDFLAGS $BOOST_SYSTEM_LIB $BOOST_FILESYSTEM_LIB"
 fi
 
 dnl Check for reduced exports
@@ -1534,6 +1494,30 @@ if test x$use_tests = xyes; then
   if test x$HEXDUMP = x; then
     AC_MSG_ERROR(hexdump is required for tests)
   fi
+
+  if test x$use_boost = xyes; then
+
+  AX_BOOST_UNIT_TEST_FRAMEWORK
+
+  dnl Determine if -DBOOST_TEST_DYN_LINK is needed
+  AC_MSG_CHECKING([for dynamic linked boost test])
+  TEMP_LIBS="$LIBS"
+  LIBS="$LIBS $BOOST_LDFLAGS $BOOST_UNIT_TEST_FRAMEWORK_LIB"
+  TEMP_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
+  AC_LINK_IFELSE([AC_LANG_SOURCE([
+       #define BOOST_TEST_DYN_LINK
+       #define BOOST_TEST_MAIN
+        #include <boost/test/unit_test.hpp>
+
+       ])],
+    [AC_MSG_RESULT(yes)]
+    [TESTDEFS="$TESTDEFS -DBOOST_TEST_DYN_LINK"],
+    [AC_MSG_RESULT(no)])
+  LIBS="$TEMP_LIBS"
+  CPPFLAGS="$TEMP_CPPFLAGS"
+
+  fi
 fi
 
 dnl libevent check
@@ -1542,10 +1526,6 @@ if test x$build_bitcoin_cli$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench
   PKG_CHECK_MODULES([EVENT], [libevent >= 2.0.21], [use_libevent=yes], [AC_MSG_ERROR([libevent version 2.0.21 or greater not found.])])
   if test x$TARGET_OS != xwindows; then
     PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads >= 2.0.21],, [AC_MSG_ERROR([libevent_pthreads version 2.0.21 or greater not found.])])
-  fi
-
-  if test x$suppress_external_warnings != xno; then
-    EVENT_CFLAGS=SUPPRESS_WARNINGS($EVENT_CFLAGS)
   fi
 fi
 
@@ -1825,6 +1805,7 @@ AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
 AM_CONDITIONAL([USE_SQLITE], [test "x$use_sqlite" = "xyes"])
 AM_CONDITIONAL([USE_BDB], [test "x$use_bdb" = "xyes"])
+AM_CONDITIONAL([ENABLE_TRACING],[test x$have_sdt = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_FUZZ],[test x$enable_fuzz = xyes])
 AM_CONDITIONAL([ENABLE_FUZZ_BINARY],[test x$enable_fuzz_binary = xyes])
@@ -1845,10 +1826,6 @@ AM_CONDITIONAL([USE_ASM],[test x$use_asm = xyes])
 AM_CONDITIONAL([WORDS_BIGENDIAN],[test x$ac_cv_c_bigendian = xyes])
 AM_CONDITIONAL([USE_NATPMP],[test x$use_natpmp = xyes])
 AM_CONDITIONAL([USE_UPNP],[test x$use_upnp = xyes])
-
-dnl for minisketch
-AM_CONDITIONAL([ENABLE_CLMUL],[test x$enable_clmul = xyes])
-AM_CONDITIONAL([HAVE_CLZ],[test x$have_clzl$have_clzll = xyesyes])
 
 AC_DEFINE(CLIENT_VERSION_MAJOR, _CLIENT_VERSION_MAJOR, [Major version])
 AC_DEFINE(CLIENT_VERSION_MINOR, _CLIENT_VERSION_MINOR, [Minor version])
@@ -1892,7 +1869,6 @@ AC_SUBST(SANITIZER_CXXFLAGS)
 AC_SUBST(SANITIZER_LDFLAGS)
 AC_SUBST(SSE42_CXXFLAGS)
 AC_SUBST(SSE41_CXXFLAGS)
-AC_SUBST(CLMUL_CXXFLAGS)
 AC_SUBST(AVX2_CXXFLAGS)
 AC_SUBST(X86_SHANI_CXXFLAGS)
 AC_SUBST(ARM_CRC_CXXFLAGS)
@@ -1902,6 +1878,7 @@ AC_SUBST(USE_SQLITE)
 AC_SUBST(USE_BDB)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
+AC_SUBST(BOOST_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
@@ -1938,6 +1915,14 @@ dnl Until this is fixed upstream and we've synced, we'll just un-export them.
 CPPFLAGS_TEMP="$CPPFLAGS"
 unset CPPFLAGS
 CPPFLAGS="$CPPFLAGS_TEMP"
+
+LDFLAGS_TEMP="$LDFLAGS"
+unset LDFLAGS
+LDFLAGS="$LDFLAGS_TEMP"
+
+LIBS_TEMP="$LIBS"
+unset LIBS
+LIBS="$LIBS_TEMP"
 
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --disable-module-ecdh"
 AC_CONFIG_SUBDIRS([src/dashbls src/secp256k1])
@@ -1977,7 +1962,7 @@ echo "  with bench          = $use_bench"
 echo "  with upnp           = $use_upnp"
 echo "  with natpmp         = $use_natpmp"
 echo "  use asm             = $use_asm"
-echo "  USDT tracing        = $use_usdt"
+echo "  ebpf tracing        = $have_sdt"
 echo "  sanitizers          = $use_sanitizers"
 echo "  debug enabled       = $enable_debug"
 echo "  stacktraces enabled = $enable_stacktraces"

@@ -23,7 +23,8 @@ const std::string CLIENT_NAME("Dash Core");
 //   - "// No build information available", if proper git information is not available
 #endif
 
-//! git will put "#define ARCHIVE_GIT_DESCRIPTION ..." on the next line inside archives. $Format:%n#define ARCHIVE_GIT_DESCRIPTION "%(describe:abbrev=12)"$
+//! git will put "#define ARCHIVE_GIT_DESCRIPTION ..." on the next line inside archives. 
+#define ARCHIVE_GIT_DESCRIPTION "v21.1.1"
 
 #if CLIENT_VERSION_IS_RELEASE
     #define BUILD_DESC "v" PACKAGE_VERSION

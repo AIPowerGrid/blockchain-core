@@ -6,7 +6,6 @@
 
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
-#include <evo/evodb.h>
 #include <evo/specialtx.h>
 
 #include <chain.h>

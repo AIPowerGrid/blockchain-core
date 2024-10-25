@@ -94,6 +94,8 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+    /** Load Partially Signed Bitcoin Transaction */
+    void gotoLoadPSBT(bool from_clipboard = false);
 
     /** Show incoming transaction notification for new transactions.
 
@@ -121,6 +123,10 @@ public Q_SLOTS:
 
     /** Show progress dialog e.g. for rescan */
     void showProgress(const QString &title, int nProgress);
+
+    /** User has requested more information about the out of sync state */
+    void requestedSyncWarningInfo();
+
 
     /** Update selected DASH amount from transactionview */
     void trxAmount(QString amount);

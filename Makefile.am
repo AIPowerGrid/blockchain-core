@@ -119,6 +119,9 @@ OSX_APP_BUILT=$(OSX_APP)/Contents/PkgInfo $(OSX_APP)/Contents/Resources/empty.lp
   $(OSX_APP)/Contents/Resources/dash.icns $(OSX_APP)/Contents/Info.plist \
   $(OSX_APP)/Contents/MacOS/Dash-Qt $(OSX_APP)/Contents/Resources/Base.lproj/InfoPlist.strings
 
+osx_volname:
+	echo $(OSX_VOLNAME) >$@
+
 if BUILD_DARWIN
 $(OSX_DMG): $(OSX_APP_BUILT) $(OSX_PACKAGING)
 	$(PYTHON) $(OSX_DEPLOY_SCRIPT) $(OSX_APP) $(OSX_VOLNAME) -translations-dir=$(QT_TRANSLATION_DIR) -dmg
@@ -177,7 +180,6 @@ LCOV_FILTER_PATTERN = \
 	-p "src/bench/" \
 	-p "src/univalue" \
 	-p "src/crypto/ctaes" \
-	-p "src/minisketch" \
 	-p "src/secp256k1" \
 	-p "depends"
 
@@ -321,7 +323,7 @@ clean-docs:
 clean-local: clean-docs
 	rm -rf coverage_percent.txt test_dash.coverage/ total.coverage/ fuzz.coverage/ test/tmp/ cache/ $(OSX_APP)
 	rm -rf test/functional/__pycache__ test/functional/test_framework/__pycache__ test/cache share/rpcauth/__pycache__
-	rm -rf dist/
+	rm -rf osx_volname dist/
 
 test-security-check:
 if TARGET_DARWIN

@@ -78,10 +78,7 @@ class AuthServiceProxy():
         passwd = None if self.__url.password is None else self.__url.password.encode('utf8')
         authpair = user + b':' + passwd
         self.__auth_header = b'Basic ' + base64.b64encode(authpair)
-        # clamp the socket timeout, since larger values can cause an
-        # "Invalid argument" exception in Python's HTTP(S) client
-        # library on some operating systems (e.g. OpenBSD, FreeBSD)
-        self.timeout = min(timeout, 2147483)
+        self.timeout = timeout
         self._set_conn(connection)
 
     def __getattr__(self, name):

@@ -16,7 +16,6 @@
 #include <index/txindex.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
-#include <node/blockstorage.h>
 #include <spork.h>
 #include <txmempool.h>
 #include <util/irange.h>
@@ -55,7 +54,7 @@ uint256 CInstantSendLock::GetRequestId() const
 
 
 CInstantSendDb::CInstantSendDb(bool unitTests, bool fWipe) :
-    db(std::make_unique<CDBWrapper>(unitTests ? "" : (gArgs.GetDataDirNet() / "llmq/isdb"), 32 << 20, unitTests, fWipe))
+    db(std::make_unique<CDBWrapper>(unitTests ? "" : (GetDataDir() / "llmq/isdb"), 32 << 20, unitTests, fWipe))
 {
 }
 
@@ -622,14 +621,14 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     return true;
 }
 
-MessageProcessingResult CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
+void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
 {
     if (!IsInstantSendEnabled()) {
-        return {};
+        return;
     }
 
     if (Params().GetConsensus().llmqTypeDIP0024InstantSend == Consensus::LLMQType::LLMQ_NONE) {
-        return {};
+        return;
     }
 
     uint256 txid;
@@ -641,7 +640,6 @@ MessageProcessingResult CInstantSendManager::HandleNewRecoveredSig(const CRecove
     } else if (/*isInstantSendLock=*/ WITH_LOCK(cs_creating, return creatingInstantSendLocks.count(recoveredSig.getId()))) {
         HandleNewInstantSendLockRecoveredSig(recoveredSig);
     }
-    return {};
 }
 
 void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid)
@@ -763,7 +761,7 @@ PeerMsgRet CInstantSendManager::ProcessMessageInstantSendLock(const CNode& pfrom
 {
     auto hash = ::SerializeHash(*islock);
 
-    WITH_LOCK(::cs_main, Assert(m_peerman)->EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash)));
+    WITH_LOCK(cs_main, EraseObjectRequest(pfrom.GetId(), CInv(MSG_ISDLOCK, hash)));
 
     if (!islock->TriviallyValid()) {
         return tl::unexpected{100};
@@ -1447,8 +1445,7 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
     }
 }
 
-void CInstantSendManager::AskNodesForLockedTx(const uint256& txid, const CConnman& connman, PeerManager& peerman,
-                                              bool is_masternode)
+void CInstantSendManager::AskNodesForLockedTx(const uint256& txid, const CConnman& connman, const PeerManager& peerman, bool is_masternode)
 {
     std::vector<CNode*> nodesToAskFor;
     nodesToAskFor.reserve(4);
@@ -1478,8 +1475,7 @@ void CInstantSendManager::AskNodesForLockedTx(const uint256& txid, const CConnma
                       txid.ToString(), pnode->GetId());
 
             CInv inv(MSG_TX, txid);
-            peerman.RequestObject(pnode->GetId(), inv, GetTime<std::chrono::microseconds>(), is_masternode,
-                                  /* fForce = */ true);
+            RequestObject(pnode->GetId(), inv, GetTime<std::chrono::microseconds>(), is_masternode, /* fForce = */ true);
         }
     }
     for (CNode* pnode : nodesToAskFor) {
