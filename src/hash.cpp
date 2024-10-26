@@ -7,7 +7,6 @@
 #include "crypto/common.h"
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"
-#include "util.h"
 
 #include <kawpow/ethash/include/ethash/progpow.hpp>
 //todo: remove these
