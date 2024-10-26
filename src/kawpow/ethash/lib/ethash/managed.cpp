@@ -2,7 +2,7 @@
 // Copyright 2018-2019 Pawel Bylica.
 // Licensed under the Apache License, Version 2.0.
 
-#include "crypto/ethash/lib/ethash/ethash-internal.hpp"
+#include "kawpow/ethash/lib/ethash/ethash-internal.hpp"
 #include "sync.h"
 
 #include <memory>
