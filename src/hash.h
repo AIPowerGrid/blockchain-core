@@ -261,9 +261,10 @@ unsigned int MurmurHash3(unsigned int nHashSeed, Span<const unsigned char> vData
 
 void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]);
 
-
+// this is x16r but I call it HashX11 because we are in early stages
+//TODO: rename to X16R
 template<typename T1>
-inline uint256 HashX16R(const T1 pbegin, const T1 pend, const uint256 PrevBlockHash)
+inline uint256 HashX11(const T1 pbegin, const T1 pend, const uint256 PrevBlockHash)
 {
 //      static std::chrono::duration<double>[16];
     int hashSelection;
