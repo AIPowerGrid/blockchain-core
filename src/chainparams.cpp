@@ -79,7 +79,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
 
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
-    const char* pszTimestamp = "Super cool test net for AIPG with masternodes yippii"
+    const char* pszTimestamp = "Super cool test net for AIPG with masternodes yippii";
     const CScript genesisOutputScript = CScript() << ParseHex("04f529c0007624ffa8c565cf9fbbcf406701b2a279a3ef06232069429b3c8c9fe8cac1b4062b418cdd4e4e2ea72ddbdf935a8f30fc3ca04d1844f6963332df8581") << OP_CHECKSIG;
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
@@ -280,8 +280,8 @@ public:
         m_assumed_blockchain_size = 45;
         m_assumed_chain_state_size = 1;
 
-        //FindMainNetGenesisBlock(1723905114, 0x20001fff, "main");
-        uint32_t nGenesisTime = 1725035287;	
+        //FindMainNetGenesisBlock(1725035286, 0x20001fff, "main");
+        uint32_t nGenesisTime = 1725035286;	
         
         genesis = CreateGenesisBlock(nGenesisTime, 3129301, 0x1e0ffff0, 1, 5000 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
