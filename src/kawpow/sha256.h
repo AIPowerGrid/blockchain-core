@@ -33,4 +33,7 @@ public:
  */
 std::string SHA256AutoDetect();
 
+
+void SHA256D64(unsigned char* output, const unsigned char* input, size_t blocks);
+
 #endif // AIPG_CRYPTO_SHA256_H

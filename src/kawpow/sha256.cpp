@@ -4,8 +4,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "crypto/sha256.h"
-#include "crypto/common.h"
+#include "kawpow/sha256.h"
+#include "kawpow/common.h"
 
 #include <assert.h>
 #include <string.h>
@@ -248,4 +248,37 @@ CSHA256& CSHA256::Reset()
     bytes = 0;
     sha256::Initialize(s);
     return *this;
+}
+void SHA256D64(unsigned char* out, const unsigned char* in, size_t blocks)
+{
+    if (TransformD64_8way) {
+        while (blocks >= 8) {
+            TransformD64_8way(out, in);
+            out += 256;
+            in += 512;
+            blocks -= 8;
+        }
+    }
+    if (TransformD64_4way) {
+        while (blocks >= 4) {
+            TransformD64_4way(out, in);
+            out += 128;
+            in += 256;
+            blocks -= 4;
+        }
+    }
+    if (TransformD64_2way) {
+        while (blocks >= 2) {
+            TransformD64_2way(out, in);
+            out += 64;
+            in += 128;
+            blocks -= 2;
+        }
+    }
+    while (blocks) {
+        TransformD64(out, in);
+        out += 32;
+        in += 64;
+        --blocks;
+    }
 }

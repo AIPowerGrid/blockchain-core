@@ -4,9 +4,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "crypto/sha512.h"
+#include "kawpow/sha512.h"
 
-#include "crypto/common.h"
+#include "kawpow/common.h"
 
 #include <string.h>
 

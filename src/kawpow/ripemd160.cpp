@@ -6,7 +6,7 @@
 
 #include "crypto/ripemd160.h"
 
-#include "crypto/common.h"
+#include "kawpow/common.h"
 
 #include <string.h>
 
