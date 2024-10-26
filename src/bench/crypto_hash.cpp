@@ -76,14 +76,14 @@ static void HASH_1MB_SHA3_256(benchmark::Bench& bench)
     });
 }
 
-static void HASH_1MB_X11(benchmark::Bench& bench)
-{
-    uint256 hash;
-    std::vector<uint8_t> in(BUFFER_SIZE,0);
-    bench.batch(in.size()).unit("byte").minEpochIterations(10).run([&] {
-        hash = HashX11(in.begin(), in.end(), hashPrevBlock);
-    });
-}
+// static void HASH_1MB_X11(benchmark::Bench& bench)
+// {
+//     uint256 hash;
+//     std::vector<uint8_t> in(BUFFER_SIZE,0);
+//     bench.batch(in.size()).unit("byte").minEpochIterations(10).run([&] {
+//         hash = HashX11(in.begin(), in.end(), hashPrevBlock);
+//     });
+// }
 
 /* Hash different number of bytes via DSHA256 */
 
