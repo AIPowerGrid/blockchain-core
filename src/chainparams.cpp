@@ -18,27 +18,7 @@
 #include <arith_uint256.h>
 
 #include <assert.h>
-
-static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
-{
-    CMutableTransaction txNew;
-    txNew.nVersion = 1;
-    txNew.vin.resize(1);
-    txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = genesisReward;
-    txNew.vout[0].scriptPubKey = genesisOutputScript;
-
-    CBlock genesis;
-    genesis.nTime    = nTime;
-    genesis.nBits    = nBits;
-    genesis.nNonce   = nNonce;
-    genesis.nVersion = nVersion;
-    genesis.vtx.push_back(MakeTransactionRef(std::move(txNew)));
-    genesis.hashPrevBlock.SetNull();
-    genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
-    return genesis;
-}
+extern int algoHashHits[16];
 
 static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::string& devNetName, uint32_t nTime, uint32_t nNonce, uint32_t nBits, const CAmount& genesisReward)
 {
@@ -75,6 +55,28 @@ static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::
  *     CTxOut(nValue=50.00000000, scriptPubKey=0xA9037BAC7050C479B121CF)
  *   vMerkleTree: e0028e
  */
+
+static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
+{
+    CMutableTransaction txNew;
+    txNew.nVersion = 1;
+    txNew.vin.resize(1);
+    txNew.vout.resize(1);
+    txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+    txNew.vout[0].nValue = genesisReward;
+    txNew.vout[0].scriptPubKey = genesisOutputScript;
+
+    CBlock genesis;
+    genesis.nTime    = nTime;
+    genesis.nBits    = nBits;
+    genesis.nNonce   = nNonce;
+    genesis.nVersion = nVersion;
+    genesis.vtx.push_back(MakeTransactionRef(std::move(txNew)));
+    genesis.hashPrevBlock.SetNull();
+    genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
+    return genesis;
+}
+
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
     const char* pszTimestamp = "Wired 09/Jan/2014 The Grand Experiment Goes Live: Overstock.com Is Now Accepting Bitcoins";
@@ -151,6 +153,37 @@ std::optional<Consensus::LLMQParams> CChainParams::GetLLMQ(Consensus::LLMQType l
     }
     return std::nullopt;
 }
+
+static void FindMainNetGenesisBlock(uint32_t nTime, uint32_t nBits, const char* network)
+{
+    CBlock block = CreateGenesisBlock(nTime, 0, nBits, 4, 5000 * COIN);
+
+    arith_uint256 bnTarget;
+    bnTarget.SetCompact(block.nBits);
+    block.nNonce64 = -1;
+    for (uint32_t nNonce = 0; nNonce < UINT32_MAX; nNonce++) {
+        block.nNonce = nNonce;
+        block.nNonce64++;
+        uint256 mix_hash;
+        uint256 hash = block.GetHashFull(mix_hash);
+        if (nNonce % 48 == 0) {
+            printf("\nrnonce=%d, pow is %s\n", nNonce, hash.GetHex().c_str());
+        }
+        if (UintToArith256(hash) <= bnTarget) {
+            block.mix_hash = mix_hash;
+            printf("\n%s net\n", network);
+            printf("\ngenesis is %s\n", block.ToString().c_str());
+            printf("\npow is %s\n", hash.GetHex().c_str());
+            printf("\ngenesisNonce is %d\n", nNonce);
+            std::cout << "Genesis Merkle " << block.hashMerkleRoot.GetHex() << std::endl;
+            return;
+        }
+    }
+
+    error("%sNetGenesisBlock: could not find %s genesis block", network, network);
+    assert(false);
+}
+
 
 /**
  * Main network on which people trade goods and services.

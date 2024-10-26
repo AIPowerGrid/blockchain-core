@@ -188,6 +188,8 @@ protected:
     int nMinSporkKeys;
     uint16_t nDefaultPlatformP2PPort;
     uint16_t nDefaultPlatformHTTPPort;
+    
+    uint32_t nKAAAWWWPOWActivationTime;
 
     void AddLLMQ(Consensus::LLMQType llmqType);
 };

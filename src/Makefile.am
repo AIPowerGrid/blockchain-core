@@ -620,7 +620,31 @@ crypto_libbitcoin_crypto_base_a_SOURCES = \
   crypto/sha512.cpp \
   crypto/sha512.h \
   crypto/siphash.cpp \
-  crypto/siphash.h
+  crypto/siphash.h \
+  kawpow/ethash/include/ethash/ethash.h \
+  kawpow/ethash/include/ethash/ethash.hpp \
+  kawpow/ethash/include/ethash/hash_types.h \
+  kawpow/ethash/include/ethash/hash_types.hpp \
+  kawpow/ethash/include/ethash/keccak.h \
+  kawpow/ethash/include/ethash/keccak.hpp \
+  kawpow/ethash/include/ethash/progpow.hpp \
+  kawpow/ethash/include/ethash/version.h \
+  kawpow/ethash/lib/ethash/bit_manipulation.h \
+  kawpow/ethash/lib/ethash/builtins.h \
+  kawpow/ethash/lib/ethash/endianness.hpp \
+  kawpow/ethash/lib/ethash/ethash.cpp \
+  kawpow/ethash/lib/ethash/ethash-internal.hpp \
+  kawpow/ethash/lib/ethash/kiss99.hpp \
+  kawpow/ethash/lib/ethash/managed.cpp \
+  kawpow/ethash/lib/ethash/primes.c \
+  kawpow/ethash/lib/ethash/primes.h \
+  kawpow/ethash/lib/ethash/progpow.cpp \
+  kawpow/ethash/lib/keccak/keccak.c \
+  kawpow/ethash/lib/keccak/keccakf1600.c \
+  kawpow/ethash/lib/keccak/keccakf800.c \
+  kawpow/ethash/lib/support/attributes.h \
+  kawpow/ethash/helpers.hpp \
+  kawpow/ethash/progpow_test_vectors.hpp
 
 if USE_ASM
 crypto_libbitcoin_crypto_base_a_SOURCES += crypto/sha256_sse4.cpp
@@ -640,29 +664,49 @@ crypto_libbitcoin_crypto_avx2_a_SOURCES = crypto/sha256_avx2.cpp
 
 # x11
 crypto_libbitcoin_crypto_base_a_SOURCES += \
-  crypto/blake.c \
-  crypto/bmw.c \
-  crypto/cubehash.c \
-  crypto/echo.c \
-  crypto/groestl.c \
-  crypto/jh.c \
-  crypto/keccak.c \
-  crypto/luffa.c \
-  crypto/shavite.c \
-  crypto/simd.c \
-  crypto/skein.c \
-  crypto/sph_blake.h \
-  crypto/sph_bmw.h \
-  crypto/sph_cubehash.h \
-  crypto/sph_echo.h \
-  crypto/sph_groestl.h \
-  crypto/sph_jh.h \
-  crypto/sph_keccak.h \
-  crypto/sph_luffa.h \
-  crypto/sph_shavite.h \
-  crypto/sph_simd.h \
-  crypto/sph_skein.h \
-  crypto/sph_types.h
+  algo/sph_groestl.h \
+  algo/sph_types.h \
+  algo/sph_blake.h \
+  algo/sph_bmw.h \
+  algo/sph_jh.h \
+  algo/sph_keccak.h \
+  algo/sph_skein.h \
+  algo/sph_luffa.h \
+  algo/sph_cubehash.h \
+  algo/sph_simd.h \
+  algo/sph_echo.h \
+  algo/sph_shavite.h \
+  algo/sph_sha2.h \
+  algo/sph_haval.h \
+  algo/sph_tiger.h \
+  algo/lyra2.h \
+  algo/sponge.h \
+  algo/gost_streebog.h \
+  algo/groestl.c \
+  algo/blake.c \
+  algo/bmw.c \
+  algo/cubehash.c \
+  algo/echo.c \
+  algo/jh.c \
+  algo/keccak.c \
+  algo/luffa.c \
+  algo/shavite.c \
+  algo/simd.c \
+  algo/skein.c \
+  algo/hamsi.c \
+  algo/whirlpool.c \
+  algo/shabal.c \
+  algo/fugue.c \
+  algo/sha2.c \
+  algo/extra.c \
+  algo/extra.h \
+  algo/sph_sha2big.c \
+  algo/haval.c \
+  algo/tiger.cpp \
+  algo/lyra2.cpp \
+  algo/sponge.cpp \
+  algo/sph_sha2.c \
+  algo/gost_streebog.c 
 
 crypto_libbitcoin_crypto_x86_shani_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 crypto_libbitcoin_crypto_x86_shani_a_CPPFLAGS = $(AM_CPPFLAGS)

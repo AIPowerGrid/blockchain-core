@@ -67,6 +67,12 @@ file(GLOB SOURCE_FILES
         src/crypto/*.c
         src/crypto/*.cpp
         src/crypto/*.h
+        src/algo/*.c
+        src/algo/*.cpp
+        src/algo/*.h
+        src/kawpow/*.c
+        src/kawpow/*.cpp
+        src/kawpow/*.h
         src/evo/*.cpp
         src/evo/*.h
         src/governance/*.cpp

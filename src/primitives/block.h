@@ -12,7 +12,7 @@
 #include <uint256.h>
 #include <cstddef>
 #include <type_traits>
-
+extern uint32_t nKAWPOWActivationTime;
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -31,12 +31,39 @@ public:
     uint32_t nBits;
     uint32_t nNonce;
 
+    // KAAAWWWPOW data
+    uint32_t nHeight;
+    uint64_t nNonce64;
+    uint256 mix_hash;
+
     CBlockHeader()
     {
         SetNull();
     }
 
-    SERIALIZE_METHODS(CBlockHeader, obj) { READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce); }
+    // Use the SERIALIZE_METHODS macro for serialization
+    SERIALIZE_METHODS(CBlockHeader, obj) 
+    { 
+        // Serialize the basic header fields
+        READWRITE(obj.nVersion);
+        READWRITE(obj.hashPrevBlock);
+        READWRITE(obj.hashMerkleRoot);
+        READWRITE(obj.nTime);
+        READWRITE(obj.nBits);
+        
+        // Conditionally serialize additional fields based on nTime
+        if (obj.nTime < 1723905113) {
+            // READWRITE(obj.nHeight);
+            // READWRITE(obj.nNonce64);
+            // READWRITE(obj.mix_hash);
+            READWRITE(obj.nNonce);
+        } else {
+            READWRITE(obj.nHeight);
+            READWRITE(obj.nNonce64);
+            READWRITE(obj.mix_hash);
+            // READWRITE(obj.nNonce);
+        }
+    }
 
     void SetNull()
     {
@@ -46,6 +73,10 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+
+        nNonce64 = 0;
+        nHeight = 0;
+        mix_hash.SetNull();
     }
 
     bool IsNull() const
@@ -54,6 +85,11 @@ public:
     }
 
     uint256 GetHash() const;
+
+    uint256 GetHashFull(uint256& mix_hash) const;
+    uint256 GetKAWPOWHeaderHash() const;
+
+    uint256 GetX16RHash() const;
 
     int64_t GetBlockTime() const
     {
@@ -225,6 +261,10 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        // KAWPOW
+        block.nHeight        = nHeight;
+        block.nNonce64       = nNonce64;
+        block.mix_hash       = mix_hash;
         return block;
     }
 
@@ -260,6 +300,34 @@ struct CBlockLocator
     bool IsNull() const
     {
         return vHave.empty();
+    }
+};
+
+class CKAWPOWInput : private CBlockHeader
+{
+public:
+    CKAWPOWInput(const CBlockHeader &header)
+    {
+        CBlockHeader::SetNull();
+        *((CBlockHeader*)this) = header;
+    }
+    SERIALIZE_METHODS(CKAWPOWInput, obj)
+    {
+        READWRITE(obj.nVersion);
+        READWRITE(obj.hashPrevBlock);
+        READWRITE(obj.hashMerkleRoot);
+        READWRITE(obj.nTime);
+        READWRITE(obj.nBits);
+        READWRITE(obj.nHeight);
+    }
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(this->nVersion);
+        READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot);
+        READWRITE(nTime);
+        READWRITE(nBits);
+        READWRITE(nHeight);
     }
 };
 
