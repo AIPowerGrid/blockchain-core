@@ -16,7 +16,7 @@
 #include <clientversion.h>
 #include <compat.h>
 #include <consensus/consensus.h>
-#include <crypto/sha256.h>
+#include <kawpow/sha256.h>
 #include <i2p.h>
 #include <net_permissions.h>
 #include <netaddress.h>

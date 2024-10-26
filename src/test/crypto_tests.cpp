@@ -13,7 +13,7 @@
 #include <crypto/poly1305.h>
 #include <crypto/ripemd160.h>
 #include <crypto/sha1.h>
-#include <crypto/sha256.h>
+#include <kawpow/sha256.h>
 #include <crypto/sha3.h>
 #include <crypto/sha512.h>
 #include <random.h>

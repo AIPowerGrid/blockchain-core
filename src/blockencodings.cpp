@@ -6,7 +6,7 @@
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <chainparams.h>
-#include <crypto/sha256.h>
+#include <kawpow/sha256.h>
 #include <crypto/siphash.h>
 #include <random.h>
 #include <streams.h>

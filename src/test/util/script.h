@@ -5,7 +5,7 @@
 #ifndef BITCOIN_TEST_UTIL_SCRIPT_H
 #define BITCOIN_TEST_UTIL_SCRIPT_H
 
-#include <crypto/sha256.h>
+#include <kawpow/sha256.h>
 #include <script/script.h>
 #include <script/standard.h>
 
