@@ -19,6 +19,7 @@
 
 #include <assert.h>
 extern int algoHashHits[16];
+extern double algoHashTotal[16];
 
 static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::string& devNetName, uint32_t nTime, uint32_t nNonce, uint32_t nBits, const CAmount& genesisReward)
 {
