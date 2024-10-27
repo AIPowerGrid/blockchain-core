@@ -7,7 +7,8 @@
 #include <hash.h>
 #include <streams.h>
 #include <tinyformat.h>
-
+#define BEGIN(a)            ((char*)&(a))
+#define END(a)              ((char*)&((&(a))[1]))
 
 uint32_t nKAWPOWActivationTime;
 
@@ -18,11 +19,11 @@ uint32_t nKAWPOWActivationTime;
 
 uint256 CBlockHeader::GetHash() const
 {
-    if (nTime < 1725037222) {
-        std::vector<unsigned char> vch(80);
-        CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
-        ss << *this;
-        return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size(), hashPrevBlock);
+    if (nTime < 9725037222) {
+        // std::vector<unsigned char> vch(80);
+        // CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
+        // ss << *this;
+        return HashX11(BEGIN(nVersion), END(nNonce), hashPrevBlock);
         // return KAWPOWHash_OnlyMix(*this);   
     } else {
         return KAWPOWHash_OnlyMix(*this);  
@@ -39,19 +40,19 @@ uint256 CBlockHeader::GetHash() const
 
 uint256 CBlockHeader::GetX16RHash() const
 {
-    std::vector<unsigned char> vch(80);
-    CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
-    ss << *this;
-    return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size(), hashPrevBlock);
+    // std::vector<unsigned char> vch(80);
+    // CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
+    // ss << *this;
+    return HashX11(BEGIN(nVersion), END(nNonce), hashPrevBlock);
 }
 
 uint256 CBlockHeader::GetHashFull(uint256& mix_hash) const
 {
     if (nTime < 1725037222) {
-        std::vector<unsigned char> vch(80);
-        CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
-        ss << *this;
-        return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size(), hashPrevBlock);
+        // std::vector<unsigned char> vch(80);
+        // CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
+        // ss << *this;
+        return HashX11(BEGIN(nVersion), END(nNonce), hashPrevBlock);
     } else {
         return KAWPOWHash(*this, mix_hash);
     }

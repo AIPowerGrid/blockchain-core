@@ -52,7 +52,7 @@ public:
         READWRITE(obj.nBits);
         
         // Conditionally serialize additional fields based on nTime
-        if (obj.nTime < 1723905113) {
+        if (obj.nTime < 9725037222) {
             // READWRITE(obj.nHeight);
             // READWRITE(obj.nNonce64);
             // READWRITE(obj.mix_hash);
