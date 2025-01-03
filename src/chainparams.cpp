@@ -63,7 +63,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     txNew.nVersion = 1;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+    txNew.vin[0].scriptSig = CScript() << CScriptNum(0) << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
     txNew.vout[0].nValue = genesisReward;
     txNew.vout[0].scriptPubKey = genesisOutputScript;
 
@@ -263,7 +263,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000"); // 2029000
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x00000a6a6679f9865f9d545adb58107a4eae437847f0e019b184263fe526185e"); // 0
+        consensus.defaultAssumeValid = uint256S("0x000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6"); // 0
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -289,14 +289,14 @@ public:
     //    arith_uint256 test;
     //    bool fNegative;
     //    bool fOverflow;
-    //    test.SetCompact(0x20001fff, &fNegative, &fOverflow);
+    //    test.SetCompact(0x1e00ffff, &fNegative, &fOverflow);
     //    std::cout << "Test threshold: " << test.GetHex() << "\n\n";
 
     //    int genesisNonce = 0;
     //    uint256 TempHashHolding = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
     //    uint256 BestBlockHash = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     //    for (int i=0;i<40000000;i++) {
-    //        genesis = CreateGenesisBlock(1688352006, i, 0x20001fff, 4, 5000 * COIN);
+    //        genesis = CreateGenesisBlock(1688352006, i, 0x1e00ffff, 4, 5000 * COIN);
     //        //genesis.hashPrevBlock = TempHashHolding;
     //        consensus.hashGenesisBlock = genesis.GetX16RHash();
 
@@ -343,12 +343,12 @@ public:
 
 	    uint32_t nGenesisTime = 1688352006; // October 30, 2023, at 00:00:00 UTC	
 
-	    genesis = CreateGenesisBlock(nGenesisTime, 83, 0x20001fff, 4, 5000 * COIN);        
+	    genesis = CreateGenesisBlock(nGenesisTime, 22801899, 0x1e00ffff, 4, 5000 * COIN);        
     
         consensus.hashGenesisBlock = genesis.GetX16RHash(); // Get the x16r hash	
 
-        assert(consensus.hashGenesisBlock == uint256S("0x000fab3cf6894bba6e13a6c046d1465a8b02a9fd0bf50d09b437b31f2a1d4130"));
-        assert(genesis.hashMerkleRoot == uint256S("b0ed374453eef00f4477d584193c58366b8bfe2f35f5a19197dec945226fedd1"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6"));
+        assert(genesis.hashMerkleRoot == uint256S("0xe04a78dcf0ad3d5c7f1ac4460c4c04bc333e677d52371b7453b5b09603b41d54"));
 
 
         // KAWPOW GENESISBLOCK WORKS!
@@ -417,7 +417,7 @@ public:
 
         checkpointData = {
             {
-                {0, uint256S("0x00000a6a6679f9865f9d545adb58107a4eae437847f0e019b184263fe526185e")},
+                {0, uint256S("0x000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6")},
             }
         };
 
@@ -524,10 +524,14 @@ public:
         m_assumed_blockchain_size = 4;
         m_assumed_chain_state_size = 1;
 
-        genesis = CreateGenesisBlock(1390666206UL, 3861367235UL, 0x1e0ffff0, 1, 50 * COIN);
-        consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c"));
-        assert(genesis.hashMerkleRoot == uint256S("0xe0028eb9648db56b1ac77cf090b99048a8007e2bb64b68f092c03c7f56a662c7"));
+	    uint32_t nGenesisTime = 1688352006; // October 30, 2023, at 00:00:00 UTC	
+
+	    genesis = CreateGenesisBlock(nGenesisTime, 22801899, 0x1e00ffff, 4, 5000 * COIN);        
+    
+        consensus.hashGenesisBlock = genesis.GetX16RHash(); // Get the x16r hash	
+
+        assert(consensus.hashGenesisBlock == uint256S("0x000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6"));
+        assert(genesis.hashMerkleRoot == uint256S("0xe04a78dcf0ad3d5c7f1ac4460c4c04bc333e677d52371b7453b5b09603b41d54"));
 
         vFixedSeeds.clear();
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));
@@ -947,10 +951,14 @@ public:
         UpdateBIP147ParametersFromArgs(args);
         UpdateBudgetParametersFromArgs(args);
 
-        genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
-        consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"));
-        assert(genesis.hashMerkleRoot == uint256S("0xe0028eb9648db56b1ac77cf090b99048a8007e2bb64b68f092c03c7f56a662c7"));
+	    uint32_t nGenesisTime = 1688352006; // October 30, 2023, at 00:00:00 UTC	
+
+	    genesis = CreateGenesisBlock(nGenesisTime, 22801899, 0x1e00ffff, 4, 5000 * COIN);        
+    
+        consensus.hashGenesisBlock = genesis.GetX16RHash(); // Get the x16r hash	
+
+        assert(consensus.hashGenesisBlock == uint256S("0x000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6"));
+        assert(genesis.hashMerkleRoot == uint256S("0xe04a78dcf0ad3d5c7f1ac4460c4c04bc333e677d52371b7453b5b09603b41d54"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
