@@ -425,9 +425,9 @@ public:
          // TODO to be specified in a future patch.
         };
 
-        // getchaintxstats 17280 0000000000000020d5e38b6aef5bc8e430029444d7977b46f710c7d281ef1281
+        // getchaintxstats 0 000000fe8c99a7aacc5aff074278a8378e625c0d02e4894db8f09bab185f4eb6
         chainTxData = ChainTxData{
-                1701429301, // * UNIX timestamp of last known number of transactions (Block 1969000)
+                1688352006, // * UNIX timestamp of last known number of transactions (Block 1969000)
                 0,   // * total number of transactions between genesis and that timestamp
                             //   (the tx=... number in the ChainStateFlushed debug.log lines)
                 0.0,      // * estimated number of transactions per second after that timestamp
