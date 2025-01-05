@@ -218,7 +218,7 @@ public:
         consensus.CSVHeight = 1; // 00000000000002e3d3a6224cfce80bae367fd3283d1e5a8ba50e5e60b2d2905d
         consensus.DIP0001Height = 9999999; // 000000000000000cbc9cb551e8ee1ac7aa223585cbdfb755d3683bafd93679e4
         consensus.DIP0003Height = 9999999;
-        consensus.DIP0003EnforcementHeight = 1047200;
+        consensus.DIP0003EnforcementHeight = 9999999;
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 999999; // 00000000000000112e41e4b3afda8b233b8cc07c532d2eac5de097b68358c43e
         consensus.BRRHeight = 999999; // 000000000000000c5a124f3eccfbe6e17876dca79cec9e63dfa70d269113c926
@@ -226,7 +226,7 @@ public:
         consensus.DIP0024Height = 999999; // 0000000000000001342be9c0b75ad40c276beaad91616423c4d9cb101b3db438
         consensus.DIP0024QuorumsHeight = 999999; // 000000000000001aa25181e4c466e593992c98f9eb21c69ee757b8bb0af50244
         consensus.V19Height = 1; // 0000000000000015e32e73052d663626327004c81c5c22cb8b42c361015c0eae
-        consensus.MinBIP9WarningHeight = 1 + 5; // V19 activation height + miner confirmation window
+        consensus.MinBIP9WarningHeight = 9999999 + 5; // V19 activation height + miner confirmation window
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 2016 * 60; // Dash: 1 day
         consensus.nPowTargetSpacing =  1 * 60; // Dash: 2.5 minutes
