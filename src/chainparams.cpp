@@ -411,7 +411,7 @@ public:
         vSporkAddresses = {"AVGjbxRQ6GV9JtNuBMYK3Cewjvk2u8RJSu"};
         nMinSporkKeys = 1;
 
-        nKAAAWWWPOWActivationTime = 1724578706;
+        nKAAAWWWPOWActivationTime = 1688764800;
         nKAWPOWActivationTime = nKAAAWWWPOWActivationTime;
 
 
