@@ -9,9 +9,9 @@ services:
     stdin_open: true  # Equivalent to -i
     ports:
       - "9788:9788"           # Mainnet Ports
-      - "9999:9999"
+      - "8865:8865"
       - "19788:19788"         # Testnet Ports
-      - "19999:19999"
+      - "18865:18865"
 
 # A note about volumes:
 #

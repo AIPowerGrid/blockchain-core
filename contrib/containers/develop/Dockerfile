@@ -38,7 +38,7 @@ RUN groupadd docker && \
 ENV DEBIAN_FRONTEND="dialog"
 
 # Expose Dash P2P and RPC ports for main network and test networks
-EXPOSE 9788 9999 19788 19999
+EXPOSE 9788 8865 19788 18865
 
 # We're done, switch back to non-privileged user
 USER dash
