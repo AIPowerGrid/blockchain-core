@@ -200,15 +200,15 @@ public:
         consensus.nMasternodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
         consensus.nInstantSendConfirmationsRequired = 6;
         consensus.nInstantSendKeepLock = 24;
-        consensus.nBudgetPaymentsStartBlock = 20000; // actual historical value
-        consensus.nBudgetPaymentsCycleBlocks = 21900; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nBudgetPaymentsStartBlock = 9999999; // actual historical value
+        consensus.nBudgetPaymentsCycleBlocks = 9999999; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         consensus.nBudgetPaymentsWindowBlocks = 100;
-        consensus.nSuperblockStartBlock = 20000; // The block at which 12.1 goes live (end of final 12.0 budget cycle)
+        consensus.nSuperblockStartBlock = 9999999; // The block at which 12.1 goes live (end of final 12.0 budget cycle)
         consensus.nSuperblockStartHash = uint256();
-        consensus.nSuperblockCycle = 21900; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nSuperblockCycle = 9999999; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         consensus.nSuperblockMaturityWindow = 1662; // ~(60*24*3)/2.6, ~3 days before actual Superblock is emitted
         consensus.nGovernanceMinQuorum = 10;
-        consensus.nGovernanceFilterElements = 20000;
+        consensus.nGovernanceFilterElements = 9999999;
         consensus.nMasternodeMinimumConfirmations = 15;
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256();
@@ -216,15 +216,15 @@ public:
         consensus.BIP66Height = 1; // 00000000000b1fa2dfa312863570e13fae9ca7b5566cb27e55422620b469aefa
         consensus.BIP147Height = 1; // 00000000000000117befca4fab5622514772f608852e5edd8df9c55464b6fe37
         consensus.CSVHeight = 1; // 00000000000002e3d3a6224cfce80bae367fd3283d1e5a8ba50e5e60b2d2905d
-        consensus.DIP0001Height = 2; // 000000000000000cbc9cb551e8ee1ac7aa223585cbdfb755d3683bafd93679e4
-        consensus.DIP0003Height = 2;
+        consensus.DIP0001Height = 9999999; // 000000000000000cbc9cb551e8ee1ac7aa223585cbdfb755d3683bafd93679e4
+        consensus.DIP0003Height = 9999999;
         consensus.DIP0003EnforcementHeight = 1047200;
         consensus.DIP0003EnforcementHash = uint256();
-        consensus.DIP0008Height = 2; // 00000000000000112e41e4b3afda8b233b8cc07c532d2eac5de097b68358c43e
-        consensus.BRRHeight = 1; // 000000000000000c5a124f3eccfbe6e17876dca79cec9e63dfa70d269113c926
-        consensus.DIP0020Height = 1; // 000000000000000f64ed3bd9af1078177ac026f6aa2677aa4d8beeae43be56cc
-        consensus.DIP0024Height = 1; // 0000000000000001342be9c0b75ad40c276beaad91616423c4d9cb101b3db438
-        consensus.DIP0024QuorumsHeight = 1; // 000000000000001aa25181e4c466e593992c98f9eb21c69ee757b8bb0af50244
+        consensus.DIP0008Height = 999999; // 00000000000000112e41e4b3afda8b233b8cc07c532d2eac5de097b68358c43e
+        consensus.BRRHeight = 999999; // 000000000000000c5a124f3eccfbe6e17876dca79cec9e63dfa70d269113c926
+        consensus.DIP0020Height = 999999; // 000000000000000f64ed3bd9af1078177ac026f6aa2677aa4d8beeae43be56cc
+        consensus.DIP0024Height = 999999; // 0000000000000001342be9c0b75ad40c276beaad91616423c4d9cb101b3db438
+        consensus.DIP0024QuorumsHeight = 999999; // 000000000000001aa25181e4c466e593992c98f9eb21c69ee757b8bb0af50244
         consensus.V19Height = 1; // 0000000000000015e32e73052d663626327004c81c5c22cb8b42c361015c0eae
         consensus.MinBIP9WarningHeight = 1 + 5; // V19 activation height + miner confirmation window
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
@@ -232,8 +232,8 @@ public:
         consensus.nPowTargetSpacing =  1 * 60; // Dash: 2.5 minutes
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 1;
-        consensus.nPowDGWHeight = 1;
+        consensus.nPowKGWHeight = 999999;
+        consensus.nPowDGWHeight = 999999;
         consensus.nRuleChangeActivationThreshold = 1815; // 90% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
