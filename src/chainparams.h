@@ -139,6 +139,8 @@ public:
     void UpdateDIP8Parameters(int nActivationHeight);
     void UpdateBudgetParameters(int nMasternodePaymentsStartBlock, int nBudgetPaymentsStartBlock, int nSuperblockStartBlock);
     void UpdateLLMQInstantSend(Consensus::LLMQType llmqType);
+
+    unsigned int DGWActivationBlock() const { return nDGWActivationBlock; }
     /**
      * Validate params for Masternodes EHF
      *
@@ -188,7 +190,7 @@ protected:
     int nMinSporkKeys;
     uint16_t nDefaultPlatformP2PPort;
     uint16_t nDefaultPlatformHTTPPort;
-    
+    unsigned int nDGWActivationBlock;
     uint32_t nKAAAWWWPOWActivationTime;
 
     void AddLLMQ(Consensus::LLMQType llmqType);

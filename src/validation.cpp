@@ -1082,66 +1082,17 @@ NOTE:   unlike bitcoin we are using PREVIOUS block height here,
 */
 static std::pair<CAmount, CAmount> GetBlockSubsidyHelper(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active)
 {
-    double dDiff;
-    CAmount nSubsidyBase;
+    // Set nSubsidyBase to a constant value of 500
+    const CAmount nSubsidyBase = 500;
 
-    if (nPrevHeight <= 4500 && Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        /* a bug which caused diff to not be correctly calculated */
-        dDiff = (double)0x0000ffff / (double)(nPrevBits & 0x00ffffff);
-    } else {
-        dDiff = ConvertBitsToDouble(nPrevBits);
-    }
-
-    const bool isDevnet = Params().NetworkIDString() == CBaseChainParams::DEVNET;
-    const bool force_fixed_base_subsidy = fV20Active || (isDevnet && nPrevHeight >= consensusParams.nHighSubsidyBlocks);
-    if (force_fixed_base_subsidy) {
-        // Originally, nSubsidyBase calculations relied on difficulty. Once Platform is live,
-        // it must be able to calculate platformReward. However, we don't want it to constantly
-        // get blocks difficulty from the payment chain, so we set the nSubsidyBase to a fixed
-        // value starting from V20 activation. Note, that it doesn't affect mainnet really
-        // because blocks difficulty there is very high already.
-        // Devnets get fixed nSubsidyBase starting from nHighSubsidyBlocks to better mimic mainnet.
-        nSubsidyBase = 5;
-    } else if (nPrevHeight < 5465) {
-        // Early ages...
-        // 1111/((x+1)^2)
-        nSubsidyBase = (1111.0 / (pow((dDiff+1.0),2.0)));
-        if(nSubsidyBase > 500) nSubsidyBase = 500;
-        else if(nSubsidyBase < 1) nSubsidyBase = 1;
-    } else if (nPrevHeight < 17000 || (dDiff <= 75 && nPrevHeight < 24000)) {
-        // CPU mining era
-        // 11111/(((x+51)/6)^2)
-        nSubsidyBase = (11111.0 / (pow((dDiff+51.0)/6.0,2.0)));
-        if(nSubsidyBase > 500) nSubsidyBase = 500;
-        else if(nSubsidyBase < 25) nSubsidyBase = 25;
-    } else {
-        // GPU/ASIC mining era
-        // 2222222/(((x+2600)/9)^2)
-        nSubsidyBase = (2222222.0 / (pow((dDiff+2600.0)/9.0,2.0)));
-        if(nSubsidyBase > 25) nSubsidyBase = 25;
-        else if(nSubsidyBase < 5) nSubsidyBase = 5;
-    }
-
+    // Calculate the block subsidy
     CAmount nSubsidy = nSubsidyBase * COIN;
 
-    // yearly decline of production by ~7.1% per year, projected ~18M coins max by year 2050+.
-    for (int i = consensusParams.nSubsidyHalvingInterval; i <= nPrevHeight; i += consensusParams.nSubsidyHalvingInterval) {
-        nSubsidy -= nSubsidy/14;
-    }
+    // No longer apply yearly decline of production or other dynamic adjustments
 
-    if (nPrevHeight < consensusParams.nHighSubsidyBlocks) {
-        assert(isDevnet);
-        nSubsidy *= consensusParams.nHighSubsidyFactor;
-    }
-
-    CAmount nSuperblockPart{};
-    // Hard fork to reduce the block reward by 10 extra percent (allowing budget/superblocks)
-    if (nPrevHeight > consensusParams.nBudgetPaymentsStartBlock) {
-        // Once v20 is active, the treasury is 20% instead of 10%
-        nSuperblockPart = nSubsidy / (fV20Active ? 5 : 10);
-    }
-    return {nSubsidy - nSuperblockPart, nSuperblockPart};
+   return {nSubsidy, 0};
 }
+
 
 CAmount GetSuperblockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active)
 {
@@ -3823,20 +3774,12 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
 
     // Check proof of work
     const Consensus::Params& consensusParams = params.GetConsensus();
-    if(Params().NetworkIDString() == CBaseChainParams::MAIN && nHeight <= 68589){
-        // architecture issues with DGW v1 and v2)
-        unsigned int nBitsNext = GetNextWorkRequired(pindexPrev, &block, consensusParams);
-        double n1 = ConvertBitsToDouble(block.nBits);
-        double n2 = ConvertBitsToDouble(nBitsNext);
 
-        if (abs(n1-n2) > n1*0.5) {
-            LogPrintf("ERROR: %s : incorrect proof of work (DGW pre-fork) - %f %f %f at %d\n", __func__, abs(n1-n2), n1, n2, nHeight);
-            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits");
-        }
-    } else {
-        if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", strprintf("incorrect proof of work at %d", nHeight));
+    // Simplified proof-of-work check, removing height dependency
+    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams)) {
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
     }
+
 
     // Check against checkpoints
     if (fCheckpointsEnabled) {
@@ -5954,6 +5897,14 @@ void ChainstateManager::Reset()
     m_active_chainstate = nullptr;
     m_snapshot_validated = false;
 }
+
+bool IsDGWActive(unsigned int nBlockNumber) {
+    return nBlockNumber >= Params().DGWActivationBlock();
+}
+// ! do not use this:
+// bool IsDGWActive(unsigned int nBlockNumber) {
+//     return nBlockNumber >= this->GetParams().DGWActivationBlock();
+// }
 
 void ChainstateManager::MaybeRebalanceCaches()
 {

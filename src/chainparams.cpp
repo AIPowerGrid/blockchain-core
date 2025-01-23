@@ -228,12 +228,14 @@ public:
         consensus.V19Height = 1; // 0000000000000015e32e73052d663626327004c81c5c22cb8b42c361015c0eae
         consensus.MinBIP9WarningHeight = 9999999 + 5; // V19 activation height + miner confirmation window
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
+        consensus.kawpowLimit 	= uint256S("0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // Estimated starting diff for first 180 kawpow blocks
         consensus.nPowTargetTimespan = 2016 * 60; // Dash: 1 day
         consensus.nPowTargetSpacing =  1 * 60; // Dash: 2.5 minutes
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nPowKGWHeight = 999999;
         consensus.nPowDGWHeight = 999999;
+        nDGWActivationBlock = 1;
         consensus.nRuleChangeActivationThreshold = 1815; // 90% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -411,7 +413,7 @@ public:
         vSporkAddresses = {"AVGjbxRQ6GV9JtNuBMYK3Cewjvk2u8RJSu"};
         nMinSporkKeys = 1;
 
-        nKAAAWWWPOWActivationTime = 1724578706;
+        nKAAAWWWPOWActivationTime = 1688764800;
         nKAWPOWActivationTime = nKAAAWWWPOWActivationTime;
 
 
