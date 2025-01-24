@@ -1082,16 +1082,42 @@ NOTE:   unlike bitcoin we are using PREVIOUS block height here,
 */
 static std::pair<CAmount, CAmount> GetBlockSubsidyHelper(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active)
 {
-    // Set nSubsidyBase to a constant value of 500
-    const CAmount nSubsidyBase = 500;
+    // Set the base subsidy (500 coins)
+    const CAmount nSubsidyBase = 500 * COIN;
 
-    // Calculate the block subsidy
-    CAmount nSubsidy = nSubsidyBase * COIN;
+    // Calculate the halvings based on block height and halving interval
+    int halvings = nPrevHeight / consensusParams.nSubsidyHalvingInterval;
 
-    // No longer apply yearly decline of production or other dynamic adjustments
+    // Initialize subsidy variable
+    CAmount nSubsidy;
 
-   return {nSubsidy, 0};
+    // Halve the subsidy based on height for the first few halvings
+    if (halvings < 4) {
+        nSubsidy = nSubsidyBase;
+        nSubsidy >>= halvings;
+    } else if (nPrevHeight >= 400000 && nPrevHeight < 500000) {
+        nSubsidy = 31.25 * COIN;
+    } else if (nPrevHeight >= 500000 && nPrevHeight < 3000000) {
+        nSubsidy = 15.625 * COIN;
+    } else if (nPrevHeight >= 3000000 && nPrevHeight < 4575000) {
+        // Subsidy decreases every 525,000 blocks
+        int blocksAfterInitial = nPrevHeight - 3000000;
+        int additionalHalvings = blocksAfterInitial / 525000;
+        nSubsidy = 15.625 * COIN;
+        nSubsidy >>= additionalHalvings;
+    } else if (nPrevHeight >= 4575000 && nPrevHeight < 8850000) {
+        nSubsidy = 1.953125 * COIN;
+    } else {
+        // Subsidy decreases every 1,050,000 blocks after the 8.85 millionth block
+        int blocksAfterSecondPhase = nPrevHeight - 8850000;
+        int additionalHalvingsSecondPhase = blocksAfterSecondPhase / 1050000;
+        nSubsidy = 0.9765625 * COIN;
+        nSubsidy >>= additionalHalvingsSecondPhase;
+    }
+
+    return {nSubsidy, 0};
 }
+
 
 
 CAmount GetSuperblockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams, bool fV20Active)
