@@ -30,6 +30,7 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
+    
 
     // KAAAWWWPOW data
     uint32_t nHeight;
@@ -227,6 +228,9 @@ public:
 
     // memory only
     mutable bool fChecked;
+
+    // devfee payments
+    mutable CTxOut txoutDevfee; 
 
     CBlock()
     {

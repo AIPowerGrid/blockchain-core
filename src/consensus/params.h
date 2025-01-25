@@ -8,7 +8,7 @@
 
 #include <uint256.h>
 #include <llmq/params.h>
-
+#include <devfee_payment.h>
 #include <limits>
 #include <vector>
 
@@ -175,6 +175,8 @@ struct Params {
     LLMQType llmqTypeDIP0024InstantSend{LLMQType::LLMQ_NONE};
     LLMQType llmqTypePlatform{LLMQType::LLMQ_NONE};
     LLMQType llmqTypeMnhf{LLMQType::LLMQ_NONE};
+
+    DevfeePayment nDevfeePayment;
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

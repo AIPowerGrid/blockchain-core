@@ -981,6 +981,19 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("superblocks_started", pindexPrev->nHeight + 1 > consensusParams.nSuperblockStartBlock);
     result.pushKV("superblocks_enabled", AreSuperblocksEnabled(*node.sporkman));
 
+    UniValue devfeeObj(UniValue::VOBJ);
+    DevfeePayment devfeePayment = consensusParams.nDevfeePayment;
+    // DevfeePayment devfeePayment = Params().GetConsensus().nDevfeePayment;
+    if(pblock->txoutDevfee != CTxOut()) {
+        CTxDestination devfee_addr;
+        ExtractDestination(pblock->txoutDevfee.scriptPubKey, devfee_addr);
+        devfeeObj.pushKV("payee", EncodeDestination(devfee_addr).c_str());
+        devfeeObj.pushKV("script", HexStr(pblock->txoutDevfee.scriptPubKey));
+        devfeeObj.pushKV("amount", pblock->txoutDevfee.nValue);
+    }
+    result.pushKV("devfee", devfeeObj);
+    result.pushKV("devfee_payments_started", pindexPrev->nHeight + 1 > devfeePayment.getStartBlock());
+
     result.pushKV("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload));
 
     return result;

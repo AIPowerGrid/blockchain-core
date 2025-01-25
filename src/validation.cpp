@@ -3750,6 +3750,18 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), tx_state.GetDebugMessage()));
         }
     }
+
+            // Check devfee in coinbase transaction
+    if (tx->IsCoinBase()) {
+        DevfeePayment devfeePayment = Params().GetConsensus().nDevfeePayment;
+        CAmount devfeeReward = devfeePayment.getDevfeePaymentAmount(nHeight - 1, blockSubsidy);
+        int devfeeStartHeight = devfeePayment.getStartBlock();
+        if(nHeight > devfeeStartHeight && devfeeReward && !devfeePayment.IsBlockPayeeValid(*tx, nHeight - 1, blockSubsidy))
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-devfee-payment-not-found", "oops");
+        }
+    }
+
+
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
     {

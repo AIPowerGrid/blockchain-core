@@ -729,6 +729,7 @@ libbitcoin_consensus_a_SOURCES = \
   arith_uint256.h \
   bls/bls.cpp \
   bls/bls.h \
+  devfee_payment.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \
@@ -770,6 +771,8 @@ libbitcoin_common_a_SOURCES = \
   bloom.cpp \
   chainparams.cpp \
   coins.cpp \
+  devfee_payment.cpp \
+  devfee_payment.h \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
