@@ -252,6 +252,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // get some info back to pass to getblocktemplate
     m_chain_helper.mn_payments->FillBlockPayments(coinbaseTx, pindexPrev, blockSubsidy, nFees, pblocktemplate->voutMasternodePayments, pblocktemplate->voutSuperblockPayments);
 
+    DevfeePayment devfeePayment = chainparams.GetConsensus().nDevfeePayment;
+    devfeePayment.FillDevfeePayment(coinbaseTx, nHeight, blockSubsidy, pblock->txoutDevfee);
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
 

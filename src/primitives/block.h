@@ -254,6 +254,7 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         fChecked = false;
+        txoutDevfee = CTxOut();
     }
 
     CBlockHeader GetBlockHeader() const
