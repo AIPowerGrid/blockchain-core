@@ -3695,6 +3695,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, const uint256& hash, Blo
     return true;
 }
 
+
 bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     // These are checks that are independent of context.
@@ -3740,6 +3741,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     // Check transactions
     // Must check for duplicate inputs (see CVE-2018-17144)
+    // CAmount blockSubsidy = GetBlockSubsidyInner(1, nHeight - 1, consensusParams, false);
     for (const auto& tx : block.vtx) {
         TxValidationState tx_state;
         if (!CheckTransaction(*tx, tx_state)) {
@@ -3749,18 +3751,15 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), tx_state.GetDebugMessage()));
         }
+                    // Check devfee in coinbase transaction
+        //  if (tx->IsCoinBase()) {
+        // DevfeePayment devfeePayment = Params().GetConsensus().nDevfeePayment;
+        //     CAmount devfeeReward = devfeePayment.getDevfeePaymentAmount(nHeight - 1, blockSubsidy);
+        //     int devfeeStartHeight = devfeePayment.getStartBlock();
+        //     if(nHeight > devfeeStartHeight && devfeeReward && !devfeePayment.IsBlockPayeeValid(*tx, nHeight - 1, blockSubsidy))
+        //         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-devfee-payment-not-found", "oops");
+        // }
     }
-
-            // Check devfee in coinbase transaction
-    if (tx->IsCoinBase()) {
-        DevfeePayment devfeePayment = Params().GetConsensus().nDevfeePayment;
-        CAmount devfeeReward = devfeePayment.getDevfeePaymentAmount(nHeight - 1, blockSubsidy);
-        int devfeeStartHeight = devfeePayment.getStartBlock();
-        if(nHeight > devfeeStartHeight && devfeeReward && !devfeePayment.IsBlockPayeeValid(*tx, nHeight - 1, blockSubsidy))
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-devfee-payment-not-found", "oops");
-        }
-    }
-
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
@@ -4682,7 +4681,7 @@ bool CVerifyDB::VerifyDB(
         if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         // check level 1: verify block validity
-        if (nCheckLevel >= 1 && !CheckBlock(block, state, chainparams.GetConsensus()))
+        if (nCheckLevel >= 1 && !CheckBlock(block, state, chainparams.GetConsensus(), pindex->nHeight))
             return error("%s: *** found bad block at %d, hash=%s (%s)\n", __func__,
                          pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
         // check level 2: verify undo validity

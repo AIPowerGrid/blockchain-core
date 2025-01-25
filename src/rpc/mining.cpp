@@ -984,15 +984,31 @@ static RPCHelpMan getblocktemplate()
     UniValue devfeeObj(UniValue::VOBJ);
     DevfeePayment devfeePayment = consensusParams.nDevfeePayment;
     // DevfeePayment devfeePayment = Params().GetConsensus().nDevfeePayment;
-    if(pblock->txoutDevfee != CTxOut()) {
-        CTxDestination devfee_addr;
-        ExtractDestination(pblock->txoutDevfee.scriptPubKey, devfee_addr);
-        devfeeObj.pushKV("payee", EncodeDestination(devfee_addr).c_str());
-        devfeeObj.pushKV("script", HexStr(pblock->txoutDevfee.scriptPubKey));
-        devfeeObj.pushKV("amount", pblock->txoutDevfee.nValue);
+
+    try {
+        if (pblock->txoutDevfee != CTxOut()) {
+            CTxDestination devfee_addr;
+
+            if (ExtractDestination(pblock->txoutDevfee.scriptPubKey, devfee_addr)) {
+                devfeeObj.pushKV("payee", EncodeDestination(devfee_addr).c_str());
+            } else {
+                devfeeObj.pushKV("error", "Failed to extract destination from scriptPubKey");
+            }
+
+            devfeeObj.pushKV("script", HexStr(pblock->txoutDevfee.scriptPubKey));
+            devfeeObj.pushKV("amount", pblock->txoutDevfee.nValue);
+        } else {
+            devfeeObj.pushKV("error", "txoutDevfee is empty");
+        }
+    } catch (const std::exception& e) {
+        devfeeObj.pushKV("error", std::string("Exception occurred: ") + e.what());
+    } catch (...) {
+        devfeeObj.pushKV("error", "Unknown error occurred while processing devfee");
     }
+
     result.pushKV("devfee", devfeeObj);
     result.pushKV("devfee_payments_started", pindexPrev->nHeight + 1 > devfeePayment.getStartBlock());
+
 
     result.pushKV("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload));
 
