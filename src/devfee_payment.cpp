@@ -17,12 +17,12 @@ CAmount DevfeePayment::getDevfeePaymentAmount(int blockHeight, CAmount blockSubs
 	  if (blockHeight <= startBlock){
 		    return 0;
 	  }
-	  for(int i = 0; i < rewardStructures.size(); i++) {
-		    DevfeeRewardStructure rewardStructure = rewardStructures[i];
-		    if(rewardStructure.blockHeight == INT_MAX || blockHeight <= rewardStructure.blockHeight) {
-			      return blockSubsidy / rewardStructure.rewardDivisor;
-		    }
-	  }
+		for (int i = 0; i < rewardStructures.size(); i++) {
+			DevfeeRewardStructure rewardStructure = rewardStructures[i];
+			if (rewardStructure.blockHeight == INT_MAX || blockHeight <= rewardStructure.blockHeight) {
+				return blockSubsidy * 0.05; // 5% of the block subsidy
+			}
+		}
 	  return 0;
 }
 

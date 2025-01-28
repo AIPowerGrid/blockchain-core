@@ -413,7 +413,7 @@ public:
         vSporkAddresses = {"AVGjbxRQ6GV9JtNuBMYK3Cewjvk2u8RJSu"};
         nMinSporkKeys = 1;
 
-        std::vector<DevfeeRewardStructure> rewardStructures = {  {INT_MAX, 19.5}  }; // 5% dev fee
+        std::vector<DevfeeRewardStructure> rewardStructures = {  {INT_MAX, 5}  }; // 5% dev fee
         consensus.nDevfeePayment = DevfeePayment(rewardStructures, 1);
 
 
